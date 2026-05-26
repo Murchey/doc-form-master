@@ -1,0 +1,12 @@
+python-docx
+lxml
+Pillow
+pyyaml
+docx2pdf
+PyPDF2
+pywin32
+jsonschema
+deep-translator
+langdetect
+matplotlib
+fonttools

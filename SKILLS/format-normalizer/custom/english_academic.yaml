@@ -1,0 +1,88 @@
+paper_type: english_academic
+
+document:
+  language: english
+  citation_style: APA
+
+fonts:
+  english: Times New Roman
+  chinese: SimSun
+
+font_size:
+  body: 12
+  heading1: 16
+  heading2: 14
+  heading3: 13
+
+paragraph:
+  line_spacing: double
+  first_indent: 0
+  alignment: left
+  spacing_before: 0
+  spacing_after: 0
+
+page:
+  margin_top: 2.54
+  margin_bottom: 2.54
+  margin_left: 3.18
+  margin_right: 3.18
+
+heading:
+
+  level1:
+    font: Times New Roman
+    size: 16
+    bold: true
+    alignment: center
+    spacing_before: 24
+    spacing_after: 12
+
+  level2:
+    font: Times New Roman
+    size: 14
+    bold: true
+    alignment: left
+    spacing_before: 18
+    spacing_after: 8
+
+  level3:
+    font: Times New Roman
+    size: 13
+    bold: true
+    italic: true
+    alignment: left
+
+table:
+  alignment: center
+  auto_fit: true
+  border: single
+
+figure:
+  alignment: center
+  caption_position: bottom
+  keep_with_next: true
+
+codeblock:
+  font: Consolas
+  size: 10
+  line_spacing: single
+  keep_indent: true
+
+references:
+  font: Times New Roman
+  size: 12
+  hanging_indent: 2
+
+toc:
+  enabled: true
+  max_level: 3
+
+pagination:
+  widow_control: true
+  keep_heading_with_content: true
+
+protection:
+  preserve_formulas: true
+  preserve_images: true
+  preserve_codeblocks: true
+  preserve_references: true

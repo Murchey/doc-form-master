@@ -222,10 +222,26 @@ tools:
 - inline/floating
 - relationship id
 
+图片同时通过两种方式嵌入 AST：
+
+1. **顶层 images 数组**：记录图片元数据（id、path）
+2. **段落 runs 内联**：在对应段落的 runs 数组中插入 `{"type": "image"}` 条目，与文字 run 保持先后顺序
+
+内联 image run 结构：
+
+```json
+{
+  "type": "image",
+  "image_data": "<base64 encoded binary>",
+  "image_format": "png"
+}
+```
+
 禁止：
 
 - 修改图片
 - 压缩图片
+- 丢弃图片数据
 
 ---
 
@@ -262,6 +278,21 @@ tools:
   "runs": []
 }
 ```
+
+runs 数组支持两种条目类型：
+
+1. **文字 run** — 标准文本 run，包含 text / bold / italic / font_name / font_size 等字段
+2. **图片 run** — 内联图片条目，结构如下：
+
+```json
+{
+  "type": "image",
+  "image_data": "<base64 encoded binary>",
+  "image_format": "png"
+}
+```
+
+图片 run 与文字 run 在 runs 数组中保持文档原始顺序。
 
 所有节点必须：
 

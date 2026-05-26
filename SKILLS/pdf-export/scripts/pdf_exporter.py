@@ -33,17 +33,15 @@ class PDFExporter:
         system = platform.system()
 
         if system == "Windows":
-            self.report[
-                "export_engine"
-            ] = "Word COM"
-
-            return "word"
-
+            try:
+                import win32com.client
+                self.report["export_engine"] = "Word COM"
+                return "word"
+            except ImportError:
+                self.report["export_engine"] = "LibreOffice"
+                return "libreoffice"
         else:
-            self.report[
-                "export_engine"
-            ] = "LibreOffice"
-
+            self.report["export_engine"] = "LibreOffice"
             return "libreoffice"
 
     def export_with_libreoffice(self):
@@ -52,20 +50,45 @@ class PDFExporter:
             "libreoffice",
             "--headless",
             "--convert-to",
-            "pdf",
+            "pdf:writer_pdf_Export",
             str(self.docx_path),
             "--outdir",
             str(self.output_dir)
-        ])
+        ], check=True)
 
     def export_with_word(self):
 
-        from docx2pdf import convert
+        import win32com.client
 
-        convert(
-            str(self.docx_path),
-            str(self.output_dir / "final.pdf")
-        )
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        word.DisplayAlerts = False
+
+        pdf_path = str(self.output_dir / "final.pdf")
+
+        try:
+            doc = word.Documents.Open(str(self.docx_path))
+
+            doc.ExportAsFixedFormat(
+                OutputFileName=pdf_path,
+                ExportFormat=17,
+                OpenAfterExport=False,
+                OptimizeFor=0,
+                Range=0,
+                From=1,
+                To=1,
+                Item=0,
+                IncludeDocProps=True,
+                KeepIRM=True,
+                CreateBookmarks=0,
+                DocStructureTags=True,
+                BitmapMissingFonts=False,
+                UseISO19005_1=False
+            )
+
+            doc.Close()
+        finally:
+            word.Quit()
 
     def validate_pdf(self):
 

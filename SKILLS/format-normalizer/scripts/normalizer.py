@@ -9,6 +9,7 @@ class FormatNormalizer:
         self.config_path = config_path
 
         self.ast = self.load_ast()
+        self.template_config = self.load_template_config()
 
         self.fix_report = {
             "paragraph_fixes": 0,
@@ -27,6 +28,12 @@ class FormatNormalizer:
 
             return json.load(f)
 
+    def load_template_config(self):
+        if self.config_path and Path(self.config_path).exists():
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
     def normalize_paragraphs(self):
 
         for paragraph in self.ast.get("paragraphs", []):
@@ -41,22 +48,45 @@ class FormatNormalizer:
 
     def normalize_fonts(self):
 
+        chinese_font = "宋体"
+        english_font = "Times New Roman"
+
+        fonts_config = self.template_config.get("fonts", {})
+        if fonts_config:
+            chinese_config = fonts_config.get("chinese", {})
+            if chinese_config.get("family"):
+                chinese_font = chinese_config["family"]
+            english_config = fonts_config.get("english", {})
+            if english_config.get("family"):
+                english_font = english_config["family"]
+
         for paragraph in self.ast.get("paragraphs", []):
 
             for run in paragraph.get("runs", []):
 
+                if run.get("type") == "image":
+                    continue
+
                 text = run.get("text", "")
 
                 if self.contains_chinese(text):
-                    run["font_name"] = "宋体"
+                    run["font_name"] = chinese_font
                 else:
-                    run["font_name"] = "Times New Roman"
+                    run["font_name"] = english_font
 
                 run["font_size"] = "12pt"
 
                 self.fix_report["font_fixes"] += 1
 
     def normalize_headings(self):
+
+        heading_config = self.template_config.get("heading", {})
+
+        level_configs = {
+            1: heading_config.get("level1", {}),
+            2: heading_config.get("level2", {}),
+            3: heading_config.get("level3", {})
+        }
 
         for paragraph in self.ast.get("paragraphs", []):
 
@@ -66,7 +96,28 @@ class FormatNormalizer:
 
                 paragraph["bold"] = True
 
-                paragraph["alignment"] = "CENTER"
+                level = None
+                style_lower = style.lower()
+                if 'heading 1' in style_lower or 'heading1' in style_lower:
+                    level = 1
+                elif 'heading 2' in style_lower or 'heading2' in style_lower:
+                    level = 2
+                elif 'heading 3' in style_lower or 'heading3' in style_lower:
+                    level = 3
+
+                if level and level in level_configs:
+                    lvl_cfg = level_configs[level]
+                    lvl_alignment = lvl_cfg.get("alignment", "CENTER" if level == 1 else "LEFT")
+                    paragraph["alignment"] = lvl_alignment
+                    lvl_size = lvl_cfg.get("size", 16 if level == 1 else 14 if level == 2 else 13)
+                    for run in paragraph.get("runs", []):
+                        if run.get("type") == "image":
+                            continue
+                        run["font_size"] = f"{lvl_size}pt"
+                        if lvl_cfg.get("font"):
+                            run["font_name"] = lvl_cfg["font"]
+                else:
+                    paragraph["alignment"] = "CENTER" if level == 1 else "LEFT"
 
                 self.fix_report["heading_fixes"] += 1
 

@@ -284,6 +284,8 @@ heading:
 
 所有规则优先使用模板配置。
 
+段落中的图片 run（`type: "image"`）必须保留，禁止删除或修改图片数据。
+
 ---
 
 # Font Normalization Rules
@@ -298,6 +300,8 @@ heading:
 - 下划线
 
 所有字体规则优先使用模板。
+
+图片 run（`type: "image"`）必须跳过，禁止对图片 run 应用字体修改。
 
 ---
 
@@ -365,11 +369,13 @@ heading:
 - 保持节点id不变
 - 保持结构不变
 - 保持relationship不变
+- 保留图片 run（`type: "image"`）及其 image_data
 
 禁止：
 
 - 删除节点
 - 重建AST
+- 丢弃图片 run 数据
 
 ---
 

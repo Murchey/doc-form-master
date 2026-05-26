@@ -50,34 +50,126 @@ class DocxParser:
             })
 
     def parse_paragraphs(self):
-        for idx, para in enumerate(self.document.paragraphs):
+        image_rels = self._build_image_relationship_map()
 
-            paragraph_data = {
-                "id": idx,
-                "type": "paragraph",
-                "text": para.text,
-                "style": para.style.name if para.style else None,
-                "alignment": str(para.alignment),
-                "runs": []
-            }
+        W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 
-            for run in para.runs:
-                run_data = {
-                    "text": run.text,
-                    "bold": run.bold,
-                    "italic": run.italic,
-                    "underline": run.underline,
-                    "font_name": run.font.name,
-                    "font_size": (
-                        str(run.font.size)
-                        if run.font.size
-                        else None
-                    )
+        with zipfile.ZipFile(self.docx_path, "r") as zip_ref:
+            media_cache = {}
+
+            for idx, para in enumerate(self.document.paragraphs):
+                paragraph_data = {
+                    "id": idx,
+                    "type": "paragraph",
+                    "text": para.text,
+                    "style": para.style.name if para.style else None,
+                    "alignment": str(para.alignment),
+                    "runs": []
                 }
 
-                paragraph_data["runs"].append(run_data)
+                for child in para._element:
+                    if child.tag != f'{{{W_NS}}}r':
+                        continue
 
-            self.ast["paragraphs"].append(paragraph_data)
+                    run_text = ''
+                    run_bold = None
+                    run_italic = None
+                    run_underline = None
+                    run_font_name = None
+                    run_font_size = None
+
+                    has_drawing = False
+
+                    for sub_child in child:
+                        tag_local = sub_child.tag.split('}')[1] if '}' in sub_child.tag else sub_child.tag
+
+                        if tag_local == 't' and sub_child.text:
+                            run_text += sub_child.text
+                        elif tag_local == 'rPr':
+                            for rpr_child in sub_child:
+                                rpr_tag = rpr_child.tag.split('}')[1] if '}' in rpr_child.tag else rpr_child.tag
+                                if rpr_tag == 'b':
+                                    run_bold = True
+                                elif rpr_tag == 'i':
+                                    run_italic = True
+                                elif rpr_tag == 'u':
+                                    run_underline = True
+                                elif rpr_tag == 'rFonts':
+                                    run_font_name = rpr_child.get(f'{{{W_NS}}}eastAsia') or rpr_child.get(f'{{{W_NS}}}ascii')
+                                elif rpr_tag == 'sz':
+                                    sz_val = rpr_child.get(f'{{{W_NS}}}val')
+                                    if sz_val:
+                                        run_font_size = str(int(sz_val) // 2) + 'pt'
+                        elif tag_local in ('drawing', 'object'):
+                            has_drawing = True
+                        elif tag_local == 'AlternateContent':
+                            for ac_child in sub_child:
+                                for drawing_elem in ac_child.iter():
+                                    d_tag = drawing_elem.tag.split('}')[1] if '}' in drawing_elem.tag else drawing_elem.tag
+                                    if d_tag == 'drawing':
+                                        has_drawing = True
+
+                    if has_drawing:
+                        blip = child.findall(f'.//{{{A_NS}}}blip')
+                        if blip:
+                            rel_id = blip[0].get(f'{{{R_NS}}}embed')
+                            if rel_id and rel_id in image_rels:
+                                img_path = image_rels[rel_id]
+
+                                if img_path not in media_cache:
+                                    media_cache[img_path] = zip_ref.read(img_path)
+
+                                img_data = media_cache[img_path]
+
+                                ext = Path(img_path).suffix.lower().replace('.', '')
+                                if ext in ('jpg', 'jpeg'):
+                                    ext = 'jpeg'
+
+                                import base64
+                                img_b64 = base64.b64encode(img_data).decode('utf-8')
+
+                                paragraph_data["runs"].append({
+                                    "type": "image",
+                                    "image_data": img_b64,
+                                    "image_format": ext
+                                })
+
+                    if run_data := self._build_text_run(run_text, run_bold, run_italic, run_underline, run_font_name, run_font_size):
+                        paragraph_data["runs"].append(run_data)
+
+                self.ast["paragraphs"].append(paragraph_data)
+
+    @staticmethod
+    def _build_text_run(text, bold, italic, underline, font_name, font_size):
+        if not text:
+            return None
+        run_data = {
+            "text": text,
+            "bold": bold,
+            "italic": italic,
+            "underline": underline,
+            "font_name": font_name,
+            "font_size": font_size
+        }
+        return run_data
+
+    def _build_image_relationship_map(self):
+        image_rels = {}
+        try:
+            with zipfile.ZipFile(self.docx_path, "r") as zip_ref:
+                if "word/_rels/document.xml.rels" in zip_ref.namelist():
+                    rels_xml = zip_ref.read("word/_rels/document.xml.rels")
+                    rels_root = etree.fromstring(rels_xml)
+                    for rel in rels_root:
+                        rel_id = rel.get('Id')
+                        target = rel.get('Target', '')
+                        if target.startswith('media/'):
+                            image_rels[rel_id] = f'word/{target}'
+        except:
+            pass
+        return image_rels
 
     def parse_tables(self):
         for table_idx, table in enumerate(self.document.tables):

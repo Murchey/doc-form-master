@@ -89,6 +89,31 @@ class FormatNormalizer:
 
                 self.fix_report["font_fixes"] += 1
 
+    @staticmethod
+    def _estimate_text_chars(text):
+        if not text:
+            return 0
+        count = 0
+        for char in text:
+            if '\u4e00' <= char <= '\u9fff':
+                count += 2
+            elif not char.isspace():
+                count += 1
+        return count
+
+    def _is_heading_misclassified_body(self, paragraph):
+        style = paragraph.get("style", "") or ""
+        style_lower = style.lower()
+        if 'heading 2' not in style_lower and 'heading 3' not in style_lower:
+            return False
+        text = paragraph.get("text", "").strip()
+        char_count = self._estimate_text_chars(text)
+        if char_count <= 60:
+            return False
+        if any(c in text for c in ['。', '，', '；', '、', '（', '）']):
+            return True
+        return False
+
     def normalize_headings(self):
 
         heading_config = self.template_config.get("heading", {})
@@ -102,6 +127,16 @@ class FormatNormalizer:
         for paragraph in self.ast.get("paragraphs", []):
 
             style = paragraph.get("style", "") or ""
+
+            if self._is_heading_misclassified_body(paragraph):
+                paragraph["style"] = "Normal"
+                paragraph.pop("bold", None)
+                for run in paragraph.get("runs", []):
+                    if run.get("type") == "image":
+                        continue
+                    run["font_name"] = None
+                self.fix_report["heading_misclass_fixes"] = self.fix_report.get("heading_misclass_fixes", 0) + 1
+                style = "Normal"
 
             if "Heading" in style:
 

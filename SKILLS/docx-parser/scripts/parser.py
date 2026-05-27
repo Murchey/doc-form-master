@@ -289,21 +289,24 @@ class DocxParser:
         toc_start = -1
         toc_end = -1
 
+        toc_keywords = ["目录", "目 录", "目  录", "table of contents", "contents"]
+
         for i, p in enumerate(paras):
             text = (p.get("text") or "").strip()
             style = (p.get("style") or "").lower()
-            
+            text_lower = text.lower()
+
             if "heading 1" in style:
                 if toc_start >= 0 and toc_end < 0:
                     toc_end = i
                 if cover_end == 0:
                     cover_end = i
                 break
-            
-            if any(kw in text for kw in ["目录", "目 录", "目  录", "Table of Contents", "Contents"]):
+
+            if any(kw in text_lower for kw in toc_keywords):
                 toc_start = i
-            
-            if "toc" in style:
+
+            if "toc" in style or "目录" in style:
                 if toc_start < 0:
                     toc_start = i
                 toc_end = i + 1

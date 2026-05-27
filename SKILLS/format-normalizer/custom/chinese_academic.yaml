@@ -5,14 +5,14 @@ document:
   citation_style: GB/T7714
 
 # =========================
-# 字体配置
+# 字体配置 (GB/T 7713.1-2006)
 # =========================
 
 fonts:
 
   chinese:
     family: 宋体
-    size: 12
+    size: 12  # 小4号宋体
 
   english:
     family: Times New Roman
@@ -22,20 +22,20 @@ fonts:
     family: 黑体
 
 # =========================
-# 页面配置
+# 页面配置 (GB/T 7713.1-2006)
 # =========================
 
 page:
 
   margin_top: 2.54
   margin_bottom: 2.54
-  margin_left: 3.18
-  margin_right: 3.18
+  margin_left: 3.17
+  margin_right: 2.54
 
   page_size: A4
 
 # =========================
-# 段落配置
+# 段落配置 (GB/T 7713.1-2006)
 # =========================
 
 paragraph:
@@ -55,7 +55,7 @@ paragraph:
   keep_lines_together: true
 
 # =========================
-# 标题配置
+# 标题配置 (GB/T 7713.1-2006)
 # =========================
 
 heading:
@@ -66,7 +66,7 @@ heading:
 
     font: 黑体
 
-    size: 16
+    size: 14  # 4号黑体，居中
 
     bold: true
 
@@ -80,7 +80,7 @@ heading:
 
     font: 黑体
 
-    size: 14
+    size: 12  # 小4号黑体，左对齐
 
     bold: true
 
@@ -92,9 +92,9 @@ heading:
 
   level3:
 
-    font: 黑体
+    font: 宋体
 
-    size: 13
+    size: 12  # 小4号宋体，左对齐
 
     bold: true
 

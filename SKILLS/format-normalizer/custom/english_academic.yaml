@@ -10,13 +10,13 @@ fonts:
 
 font_size:
   body: 12
-  heading1: 16
-  heading2: 14
-  heading3: 13
+  heading1: 12
+  heading2: 12
+  heading3: 12
 
 paragraph:
   line_spacing: double
-  first_indent: 0
+  first_indent: 1.27
   alignment: left
   spacing_before: 0
   spacing_after: 0
@@ -24,14 +24,14 @@ paragraph:
 page:
   margin_top: 2.54
   margin_bottom: 2.54
-  margin_left: 3.18
-  margin_right: 3.18
+  margin_left: 2.54
+  margin_right: 2.54
 
 heading:
 
   level1:
     font: Times New Roman
-    size: 16
+    size: 12
     bold: true
     alignment: center
     spacing_before: 24
@@ -39,7 +39,7 @@ heading:
 
   level2:
     font: Times New Roman
-    size: 14
+    size: 12
     bold: true
     alignment: left
     spacing_before: 18
@@ -47,7 +47,7 @@ heading:
 
   level3:
     font: Times New Roman
-    size: 13
+    size: 12
     bold: true
     italic: true
     alignment: left

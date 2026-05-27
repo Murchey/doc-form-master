@@ -51,11 +51,31 @@ class FontManager:
             set(font.name for font in fonts)
         )
 
+    FONT_ALIASES = {
+        "宋体": ["SimSun", "simsun", "NSimSun"],
+        "黑体": ["SimHei", "simhei", "Microsoft YaHei"],
+        "仿宋_GB2312": ["FangSong_GB2312", "仿宋"],
+        "楷体": ["KaiTi", "kaiti"],
+        "微软雅黑": ["Microsoft YaHei", "msyh"],
+    }
+
+    def _font_is_available(self, font_name):
+        if font_name in self.available_fonts:
+            return True
+        aliases = self.FONT_ALIASES.get(font_name, [])
+        for alias in aliases:
+            if alias in self.available_fonts:
+                return True
+            for avail in self.available_fonts:
+                if alias.lower() == avail.lower():
+                    return True
+        return False
+
     def validate_fonts(self):
 
         for font in self.required_fonts:
 
-            if font not in self.available_fonts:
+            if not self._font_is_available(font):
 
                 self.missing_fonts.append(font)
 

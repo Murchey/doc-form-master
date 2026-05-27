@@ -528,11 +528,18 @@ def run_preview(ast_path, template_config_path, source_docx_path=None):
     server = HTTPServer(("127.0.0.1", port), PreviewHandler)
 
     url = f"http://127.0.0.1:{port}"
-    print(f"[INFO] Preview server started: {url}")
+    print(f"[INFO] Preview server starting on: {url}")
 
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    import time
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
 
-    server.serve_forever()
+    time.sleep(2)
+
+    print(f"[INFO] Opening browser: {url}")
+    webbrowser.open(url)
+
+    server_thread.join()
 
     result = {
         "user_confirmed": STATE.confirmed,

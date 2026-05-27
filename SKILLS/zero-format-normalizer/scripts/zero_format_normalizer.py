@@ -151,6 +151,7 @@ class ZeroFormatNormalizer:
 
         toc_keywords = ["目录", "目 录", "目  录", "table of contents", "contents"]
 
+        first_heading_idx = -1
         for i, p in enumerate(paras):
             text = (p.get("text") or "").strip()
             text_lower = text.lower()
@@ -158,14 +159,19 @@ class ZeroFormatNormalizer:
             if any(kw in text_lower for kw in toc_keywords):
                 toc_start = i
 
-            if re.match(r'^\d+(\.\d+)*\s+\S', text):
-                if cover_end == 0:
-                    cover_end = i
+            if self._detect_heading_level(text):
+                if first_heading_idx < 0:
+                    first_heading_idx = i
                 if toc_start >= 0 and toc_end < 0:
                     toc_end = i
-                break
+                    break
 
-        if cover_end == 0:
+        if first_heading_idx > 0:
+            cover_end = first_heading_idx
+        elif first_heading_idx == 0:
+            cover_end = 0
+
+        if cover_end == 0 and first_heading_idx < 0:
             for i, p in enumerate(paras):
                 text = (p.get("text") or "").strip()
                 if text and len(text) > 5:
@@ -175,7 +181,7 @@ class ZeroFormatNormalizer:
         if toc_start >= 0 and toc_end < 0:
             for i in range(toc_start + 1, len(paras)):
                 text = (paras[i].get("text") or "").strip()
-                if re.match(r'^\d+(\.\d+)*\s+\S', text):
+                if self._detect_heading_level(text):
                     toc_end = i
                     break
             if toc_end < 0:
@@ -195,13 +201,56 @@ class ZeroFormatNormalizer:
             "toc_end": toc_end
         }
 
-    def _detect_heading_level(self, text):
-        if re.match(r'^\d+\s+\S', text):
-            return 1
+    def _detect_heading_level(self, text, prev_text=None, next_text=None):
+        text = text.strip()
+        if not text:
+            return None
+
+        if re.match(r'^\d+\.\d+\.\d+\s+\S', text):
+            return 3
         elif re.match(r'^\d+\.\d+\s+\S', text):
             return 2
-        elif re.match(r'^\d+\.\d+\.\d+\s+\S', text):
+        elif re.match(r'^\d+[\.\、]\s*\S', text) and len(text) <= 50:
             return 3
+
+        if re.match(r'^[一二三四五六七八九十]+[\、\.\s]', text):
+            return 2
+
+        if re.match(r'^第[一二三四五六七八九十\d]+[章节部分篇]', text):
+            return 1
+
+        if re.match(r'^第[一二三四五六七八九十\d]+核心', text):
+            return 2
+        if re.match(r'^趋势[一二三四五六七八九十\d]', text):
+            return 2
+
+        if text.startswith('远景战略') or text.startswith('构筑') or text.startswith('面向'):
+            if len(text) <= 60:
+                return 1
+
+        if '：' in text:
+            parts = text.split('：', 1)
+            prefix = parts[0].strip()
+            if len(prefix) <= 15 and len(text) <= 80:
+                if any(kw in prefix for kw in ['引言', '摘要', '结论', '总结', '概述', '前言', '背景']):
+                    return 2
+                if re.match(r'^[一二三四五六七八九十\d]+$', prefix):
+                    return 2
+                if len(prefix) <= 10:
+                    return 2
+
+        if prev_text is not None and next_text is not None:
+            prev_len = len(prev_text.strip())
+            next_len = len(next_text.strip())
+            curr_len = len(text)
+            if curr_len <= 40 and not any(c in text for c in '。，；、（）《》""'):
+                if prev_len > 100 and next_len > 100:
+                    return 2
+                if prev_len == 0 and next_len > 80:
+                    return 2
+                if prev_len <= 40 and next_len > 120 and curr_len <= 25:
+                    return 2
+
         return None
 
     def create_formatted_document(self):
@@ -322,12 +371,15 @@ class ZeroFormatNormalizer:
     def _add_body_content(self):
         body_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "body"]
 
-        for para_data in body_paras:
+        for i, para_data in enumerate(body_paras):
             text = para_data.get("text", "").strip()
             if not text:
                 continue
 
-            heading_level = self._detect_heading_level(text)
+            prev_text = body_paras[i-1].get("text", "") if i > 0 else None
+            next_text = body_paras[i+1].get("text", "") if i < len(body_paras) - 1 else None
+
+            heading_level = self._detect_heading_level(text, prev_text, next_text)
 
             if heading_level:
                 self._add_heading(text, heading_level)
@@ -346,7 +398,12 @@ class ZeroFormatNormalizer:
         spacing_before = cfg.get("spacing_before", 24 if level == 1 else 18)
         spacing_after = cfg.get("spacing_after", 18 if level == 1 else 12)
 
-        para = self.doc.add_paragraph()
+        heading_style_name = f'Heading {level}'
+        try:
+            para = self.doc.add_paragraph(style=heading_style_name)
+        except KeyError:
+            para = self.doc.add_paragraph()
+
         run = para.add_run(text)
         run.bold = bold
         run.font.size = Pt(font_size)

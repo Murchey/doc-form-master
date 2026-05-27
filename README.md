@@ -8,7 +8,8 @@
 - **英文论文格式化** - 支持 APA、IEEE、ACM 等英文论文格式
 - **公文格式化** - 符合国家标准的公文排版（GB/T 9704-2012）
 - **用户自定义模板** - 支持 YAML/JSON 自定义格式模板
-- **智能标题识别** - 自动验证并修正误标为标题的正文段落
+- **零格式文档处理** - 自动识别并格式化纯文本/无格式文档，智能检测文档结构
+- **智能标题识别** - 支持多种中文标题格式检测（编号、冒号、上下文感知等）
 - **设计预览与确认** - 浏览器中预览封面页、目录页、页眉页脚和正文样式，支持在线编辑
 - **自动生成目录** - 使用 Word TOC 域代码自动生成目录，包含页码、层级缩进和前导点
 - **页眉页脚管理** - 自定义页眉文本、分隔线和页码格式（阿拉伯/罗马/中文数字）
@@ -63,11 +64,13 @@ doc-from-master/
 │   ├── formula-protection/     # 数学公式保护
 │   ├── template-engine/        # 模板管理
 │   ├── font-manager/           # 字体兼容管理
-│   ├── format-normalizer/      # 格式标准化（含 TOC 域/页眉页脚/段落间距）
+│   ├── format-normalizer/      # 格式标准化（已有格式文档）
+│   ├── zero-format-normalizer/ # 零格式标准化（纯文本/无格式文档）
 │   ├── preview-design/         # 设计预览与用户确认（Web 界面）
 │   ├── image-layout/           # 图片布局优化
 │   ├── translation-engine/     # 中英互译
-│   └── pdf-export/             # PDF 导出
+│   ├── pdf-export/             # PDF 导出
+│   └── report-generator/       # 报告生成
 ├── workspace/                  # 工作区 (运行时创建)
 │   ├── input/                  # 输入文件
 │   ├── output/                 # 输出文件
@@ -79,24 +82,27 @@ doc-from-master/
 ## 处理流程
 
 ```text
-Phase 1: 解析与验证
-    docx-parser → xml-safety
+Phase 1: 解析与格式质量检测
+    docx-parser → 格式质量检测（已格式化 / 零格式）
 
-Phase 2: 保护与配置
-    formula-protection
-    template-engine
-    font-manager
+Phase 2: 已格式化路径
+    xml-safety → formula-protection → template-engine → font-manager
+    → preview-design（用户确认）→ format-normalizer → image-layout
 
-Phase 3: 设计预览与用户确认（浏览器交互）
-    preview-design → 用户确认封面页/目录页/页眉页脚/段落间距/样式
+Phase 2b: 零格式路径
+    template-engine → font-manager → preview-design（用户确认）
+    → zero-format-normalizer → image-layout
 
-Phase 4: 格式化与优化
-    format-normalizer → image-layout
-
-Phase 5: 后处理
+Phase 3: 后处理
     translation-engine (可选)
     pdf-export (可选)
+    report-generator
 ```
+
+### 格式质量检测
+系统会自动检测文档的格式质量，决定走哪条处理路径：
+- **已格式化**：文档有标题样式、字体配置、段落格式 → 走已格式化路径
+- **零格式**：文档无任何格式，仅含纯文本内容 → 走零格式路径
 
 ## 模板说明
 
@@ -123,6 +129,12 @@ Phase 5: 后处理
 支持自定义 YAML/JSON 模板。
 
 ## 最近更新
+
+### v1.3.0 (2025-05-27)
+- **零格式文档处理**：新增 `zero-format-normalizer` skill，支持纯文本/无格式文档的自动格式化
+- **智能标题检测**：支持多种中文标题格式（编号、冒号、上下文感知等）
+- **路径分支**：根据文档格式质量自动选择处理路径（已格式化/零格式）
+- **脚本归档**：将项目根目录的临时脚本归档到对应 skill 目录
 
 ### v1.2.0 (2025-05-27)
 - **智能标题验证**：自动检测并修正误标为标题的正文段落（如过长文本、以标点结尾等）

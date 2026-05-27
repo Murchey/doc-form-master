@@ -642,7 +642,7 @@ class ASTToDocxConverter:
         if update_fields is None:
             update_fields = OxmlElement('w:updateFields')
             settings_part.append(update_fields)
-        update_fields.set(qn('w:val'), 'true')
+        update_fields.set(qn('w:val'), 'false')
 
     def _apply_header_footer(self):
         header_cfg = self.template_config.get("header", {})

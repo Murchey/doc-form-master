@@ -364,37 +364,35 @@ class ZeroFormatNormalizer:
         title_size = toc_cfg.get("title_size", 16)
         max_level = toc_cfg.get("max_level", 3)
 
-        para = self.doc.add_paragraph()
-        run = para.add_run(title)
-        run.bold = True
-        run.font.size = Pt(title_size)
-        run.font.color.rgb = RGBColor(0, 0, 0)
-        self._set_run_font(run, title_font, True)
-        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        para.paragraph_format.space_after = Pt(20)
+        toc_title_para = self.doc.add_paragraph()
+        toc_title_run = toc_title_para.add_run(title)
+        toc_title_run.bold = True
+        toc_title_run.font.size = Pt(title_size)
+        toc_title_run.font.color.rgb = RGBColor(0, 0, 0)
+        self._set_run_font(toc_title_run, title_font, True)
+        toc_title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        toc_title_para.paragraph_format.space_after = Pt(20)
 
-        toc_field_elem = OxmlElement('w:p')
-        toc_ppr = OxmlElement('w:pPr')
-        toc_field_elem.append(toc_ppr)
+        toc_para = self.doc.add_paragraph()
 
         r_begin = OxmlElement('w:r')
         fld_begin = OxmlElement('w:fldChar')
         fld_begin.set(qn('w:fldCharType'), 'begin')
         r_begin.append(fld_begin)
-        toc_field_elem.append(r_begin)
+        toc_para._element.append(r_begin)
 
         r_instr = OxmlElement('w:r')
         instr = OxmlElement('w:instrText')
         instr.set(qn('xml:space'), 'preserve')
         instr.text = f' TOC \\o "1-{max_level}" \\h \\z \\u '
         r_instr.append(instr)
-        toc_field_elem.append(r_instr)
+        toc_para._element.append(r_instr)
 
         r_sep = OxmlElement('w:r')
         fld_sep = OxmlElement('w:fldChar')
         fld_sep.set(qn('w:fldCharType'), 'separate')
         r_sep.append(fld_sep)
-        toc_field_elem.append(r_sep)
+        toc_para._element.append(r_sep)
 
         r_ph = OxmlElement('w:r')
         rph_rpr = OxmlElement('w:rPr')
@@ -406,25 +404,19 @@ class ZeroFormatNormalizer:
         t_ph.set(qn('xml:space'), 'preserve')
         t_ph.text = '（目录将在 Word 中自动更新）'
         r_ph.append(t_ph)
-        toc_field_elem.append(r_ph)
+        toc_para._element.append(r_ph)
 
         r_end = OxmlElement('w:r')
         fld_end = OxmlElement('w:fldChar')
         fld_end.set(qn('w:fldCharType'), 'end')
         r_end.append(fld_end)
-        toc_field_elem.append(r_end)
+        toc_para._element.append(r_end)
 
-        self.doc.element.body.append(toc_field_elem)
-
-        self._enable_auto_update_fields()
-
-        pb_elem = OxmlElement('w:p')
-        pb_r = OxmlElement('w:r')
+        pb_para = self.doc.add_paragraph()
+        pb_run = pb_para.add_run()
         pb_br = OxmlElement('w:br')
         pb_br.set(qn('w:type'), 'page')
-        pb_r.append(pb_br)
-        pb_elem.append(pb_r)
-        self.doc.element.body.append(pb_elem)
+        pb_run._element.append(pb_br)
 
     def _add_body_content(self):
         body_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "body"]
@@ -697,7 +689,7 @@ class ZeroFormatNormalizer:
         if update_fields is not None:
             settings_part.remove(update_fields)
         update_fields = OxmlElement('w:updateFields')
-        update_fields.set(qn('w:val'), 'true')
+        update_fields.set(qn('w:val'), 'false')
         settings_part.append(update_fields)
 
     @staticmethod

@@ -275,6 +275,7 @@ tools:
   "type": "paragraph",
   "text": "example",
   "style": "Heading1",
+  "section": "body",
   "runs": []
 }
 ```
@@ -294,11 +295,34 @@ runs 数组支持两种条目类型：
 
 图片 run 与文字 run 在 runs 数组中保持文档原始顺序。
 
+## Section Identification
+
+解析完成后，必须识别文档结构区域并为每个段落标记 `section` 字段：
+
+| section 值 | 含义 | 检测规则 |
+|---|---|---|
+| `"cover"` | 封面页 | 文档开头到第一个实质内容 Heading 之间的段落（空段落 + 居中标题） |
+| `"toc"` | 目录页 | 包含"目录"/"目 录"/"Table of Contents"文本的段落，或样式名含"TOC"的段落 |
+| `"body"` | 正文 | 其余所有段落 |
+
+AST 顶层必须包含 `section_regions` 字段：
+
+```json
+{
+  "section_regions": {
+    "cover_end": 5,
+    "toc_start": 6,
+    "toc_end": 15
+  }
+}
+```
+
 所有节点必须：
 
 - type明确
 - id唯一
 - position可追踪
+- section已标记
 
 ---
 

@@ -34,9 +34,17 @@ class FormatNormalizer:
                 return json.load(f)
         return {}
 
+    @staticmethod
+    def _is_protected(paragraph):
+        section = paragraph.get("section", "")
+        return section in ("cover", "toc")
+
     def normalize_paragraphs(self):
 
         for paragraph in self.ast.get("paragraphs", []):
+
+            if self._is_protected(paragraph):
+                continue
 
             paragraph["alignment"] = "JUSTIFY"
 
@@ -61,6 +69,9 @@ class FormatNormalizer:
                 english_font = english_config["family"]
 
         for paragraph in self.ast.get("paragraphs", []):
+
+            if self._is_protected(paragraph):
+                continue
 
             for run in paragraph.get("runs", []):
 
@@ -90,7 +101,7 @@ class FormatNormalizer:
 
         for paragraph in self.ast.get("paragraphs", []):
 
-            style = paragraph.get("style", "")
+            style = paragraph.get("style", "") or ""
 
             if "Heading" in style:
 

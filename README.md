@@ -8,6 +8,10 @@
 - **英文论文格式化** - 支持 IEEE、ACM 等英文论文格式
 - **公文格式化** - 符合国家标准的公文排版
 - **用户自定义模板** - 支持 YAML/JSON 自定义格式模板
+- **设计预览与确认** - 浏览器中预览封面页、目录页、页眉页脚和正文样式，支持在线编辑
+- **自动生成目录** - 使用 Word TOC 域代码自动生成目录，包含页码、层级缩进和前导点
+- **页眉页脚管理** - 自定义页眉文本、分隔线和页码格式（阿拉伯/罗马/中文数字）
+- **段落间距控制** - 可选「段落之间空行分隔」，灵活控制正文排版风格
 - **中英互译** - 保持文档结构的智能翻译
 - **数学公式保护** - 完整保留 OMML、MathType 公式
 - **图片布局优化** - 自动调整图片位置和大小
@@ -37,7 +41,15 @@ pip install -r requirements.txt
 
 1. 将 DOCX 文件放入 `workspace/input/`
 2. 运行 Agent，按提示选择处理选项
-3. 处理完成后，文件位于 `workspace/output/`
+3. 在浏览器预览界面中确认：
+   - 封面页设计（保留或重新设计）
+   - 目录页配置（自动生成、标题样式、最大级别）
+   - 页眉页脚设置（文本、字体、对齐、页码格式）
+   - 正文样式（字体、字号、行距、缩进）
+   - 段落间距（是否空行分隔）
+4. 确认后系统自动完成格式标准化
+5. 处理完成后，文件位于 `workspace/output/`
+6. 在 Word 中按 `Ctrl+A` 后按 `F9` 更新域以生成目录页码
 
 ## 项目结构
 
@@ -45,12 +57,13 @@ pip install -r requirements.txt
 doc-from-master/
 ├── AGENT.md                    # Agent 配置文件
 ├── SKILLS/                     # 技能模块
-│   ├── docx-parser/            # DOCX 结构解析
+│   ├── docx-parser/            # DOCX 结构解析（含封面/目录检测）
 │   ├── xml-safety/             # XML 安全校验
 │   ├── formula-protection/     # 数学公式保护
 │   ├── template-engine/        # 模板管理
 │   ├── font-manager/           # 字体兼容管理
-│   ├── format-normalizer/      # 格式标准化
+│   ├── format-normalizer/      # 格式标准化（含 TOC 域/页眉页脚/段落间距）
+│   ├── preview-design/         # 设计预览与用户确认（Web 界面）
 │   ├── image-layout/           # 图片布局优化
 │   ├── translation-engine/     # 中英互译
 │   └── pdf-export/             # PDF 导出
@@ -73,10 +86,13 @@ Phase 2: 保护与配置
     template-engine
     font-manager
 
-Phase 3: 格式化与优化
+Phase 3: 设计预览与用户确认（浏览器交互）
+    preview-design → 用户确认封面页/目录页/页眉页脚/段落间距/样式
+
+Phase 4: 格式化与优化
     format-normalizer → image-layout
 
-Phase 4: 后处理
+Phase 5: 后处理
     translation-engine (可选)
     pdf-export (可选)
 ```
@@ -95,6 +111,8 @@ Phase 4: 后处理
 - 系统采用非破坏性处理，不会修改原始文件
 - 所有操作均可回滚
 - 大型文档 (>200页) 自动启用分块处理
+- 目录页使用 Word TOC 域代码生成，打开文档后需按 `Ctrl+A` 再按 `F9` 更新域以显示页码
+- 页眉页脚通过 Word 底层 XML 写入，兼容 WPS 和 LibreOffice
 
 ## 许可证
 

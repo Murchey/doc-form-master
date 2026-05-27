@@ -270,6 +270,8 @@ class DocxParser:
 
         self.parse_formulas()
 
+        self._identify_sections()
+
         self.export_ast(
             "workspace/parsed/document_ast.json"
         )
@@ -277,6 +279,63 @@ class DocxParser:
         print(
             "[INFO] AST exported successfully"
         )
+
+    def _identify_sections(self):
+        paras = self.ast.get("paragraphs", [])
+        if not paras:
+            return
+
+        cover_end = 0
+        first_heading_idx = None
+        for i, p in enumerate(paras):
+            text = (p.get("text") or "").strip()
+            style = p.get("style") or ""
+            alignment = p.get("alignment") or ""
+            has_substantial = len(text) > 10
+
+            if "Heading" in style or "Title" in style:
+                if first_heading_idx is None:
+                    first_heading_idx = i
+                if has_substantial:
+                    cover_end = i
+                    break
+
+            if not text and first_heading_idx is None:
+                continue
+
+        if cover_end == 0 and first_heading_idx is not None:
+            cover_end = first_heading_idx
+        elif cover_end == 0:
+            cover_end = 0
+
+        toc_start = -1
+        toc_end = -1
+        for i, p in enumerate(paras):
+            text = (p.get("text") or "").strip()
+            style = p.get("style") or ""
+            if any(kw in text for kw in ["目录", "目 录", "Table of Contents"]):
+                toc_start = i
+            if "TOC" in style:
+                if toc_start < 0:
+                    toc_start = i
+                toc_end = i + 1
+
+        if toc_start >= 0 and toc_end < 0:
+            toc_end = toc_start + 1
+
+        for i, p in enumerate(paras):
+            if i < cover_end:
+                p["section"] = "cover"
+            elif toc_start >= 0 and toc_start <= i < toc_end:
+                p["section"] = "toc"
+            else:
+                p["section"] = "body"
+
+        self.ast["section_regions"] = {
+            "cover_end": cover_end,
+            "toc_start": toc_start,
+            "toc_end": toc_end
+        }
 
 
 if __name__ == "__main__":

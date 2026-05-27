@@ -87,6 +87,7 @@ SKILLS/
 ├── template-engine/      # 模板管理
 ├── font-manager/         # 字体兼容管理
 ├── format-normalizer/    # 格式标准化
+├── preview-design/       # 设计预览与用户确认
 ├── image-layout/         # 图片布局优化
 ├── translation-engine/   # 中英互译
 └── pdf-export/           # PDF 导出
@@ -109,7 +110,10 @@ docx-parser
     │        ├──→ font-manager
     │        │        │
     │        │        ▼
-    │        └──→ format-normalizer
+    │        └──→ preview-design  ← 用户确认封面/目录/样式
+    │                 │
+    │                 ▼
+    │          format-normalizer
     │                 │
     │                 ▼
     └──────────→ image-layout
@@ -220,10 +224,13 @@ Phase 2: 保护与配置 (并行)
     template-engine
     font-manager
 
-Phase 3: 格式化与优化 (串行)
+Phase 3: 设计预览与用户确认 (交互)
+    preview-design → 用户确认封面页/目录页/样式
+
+Phase 4: 格式化与优化 (串行)
     format-normalizer → image-layout
 
-Phase 4: 后处理 (条件执行)
+Phase 5: 后处理 (条件执行)
     translation-engine (如需翻译)
     pdf-export (如需导出PDF)
 ```
@@ -296,17 +303,59 @@ Phase 4: 后处理 (条件执行)
 
 ---
 
-## Step 8: 调用 format-normalizer
+## Step 8: 调用 preview-design（设计预览与用户确认）
 
-执行格式标准化。
+在浏览器中预览文档设计，等待用户确认。
 
-输入：`protected_ast` + `template_config` + `font_mapping`
+输入：`document_ast` + `template_config` + 源 DOCX 路径
 
-输出：`normalized_ast`
+输出：用户确认结果 + 编辑后的配置（含 toc / header / footer 配置）
+
+必须展示：
+
+1. **封面页预览**：检测并展示封面页设计，用户可选择保留或重新设计
+2. **目录页预览**：
+   - 已有目录页：展示并允许保留
+   - 自动生成目录：用户可选择是否启用，配置标题文本、字体字号、最大级别
+   - 目录生成采用 Word 内置 TOC 域代码，Word 打开后自动计算页码、层级缩进和前导点
+3. **页眉页脚预览**：
+   - 页眉：用户可开关、设置文本、字体字号、对齐方式、分隔线
+   - 页脚：用户可开关、选择页码格式（阿拉伯/罗马/中文数字）、设置字体字号、对齐方式
+   - 以页面布局模拟方式直观展示
+4. **正文样式预览**：展示标题/正文的字体、字号、行距、缩进、颜色等
+5. **段落间距**：用户可勾选「段落之间空行分隔」，启用后正文段落增加段后间距（一个字号大小）
+6. **样式在线编辑**：用户可在线修改所有样式参数
+
+用户确认后：
+
+- 将用户选择传递给 format-normalizer
+- 如果用户选择保留封面页/目录页，format-normalizer 跳过这些段落
+- 如果用户启用自动生成目录，ast_to_docx 在正文前插入目录页
+- 如果用户启用页眉/页脚，ast_to_docx 写入页眉页脚
+- 将编辑后的配置合并到 `template_config`（含 toc / header / footer 键）
 
 ---
 
-## Step 9: 调用 image-layout
+## Step 9: 调用 format-normalizer
+
+执行格式标准化。
+
+输入：`protected_ast` + `template_config`（含用户编辑 + toc/header/footer 配置）+ `font_mapping` + 源 DOCX 路径
+
+输出：`normalized_ast` + 格式化后的 DOCX
+
+封面页和目录页段落（`section: "cover"` / `section: "toc"`）根据用户确认决定是否跳过。
+
+ast_to_docx 阶段额外执行：
+
+- 如果 `toc.enabled == true`：在正文前插入目录标题和 Word TOC 域代码（`TOC \o "1-N" \h \z \u`），目录后加分页符
+- 如果 `header.enabled == true`：写入页眉文本、设置字体对齐和分隔线
+- 如果 `footer.enabled == true`：写入页脚 PAGE 域代码实现自动页码
+- 如果 `paragraph.paragraph_spacing == true`：正文段落（非标题）的段后间距设为一个正文字号大小
+
+---
+
+## Step 10: 调用 image-layout
 
 优化图片布局。
 
@@ -318,7 +367,7 @@ Phase 4: 后处理 (条件执行)
 
 ---
 
-## Step 10: 调用 translation-engine (条件执行)
+## Step 11: 调用 translation-engine (条件执行)
 
 如果用户需要翻译：
 
@@ -330,7 +379,7 @@ Phase 4: 后处理 (条件执行)
 
 ---
 
-## Step 11: 调用 pdf-export (条件执行)
+## Step 12: 调用 pdf-export (条件执行)
 
 如果用户需要导出 PDF：
 
@@ -340,7 +389,7 @@ Phase 4: 后处理 (条件执行)
 
 ---
 
-## Step 12: 生成最终报告
+## Step 13: 生成最终报告
 
 汇总所有处理结果，生成报告。
 
@@ -465,6 +514,23 @@ workspace/logs/                # 处理日志
 英文: Times New Roman、Arial、Calibri、Cambria
 等宽: Consolas、Courier New
 ```
+
+---
+
+# Heading Format Rules
+
+标题格式化必须遵循：
+
+- 使用模板配置的字体（如黑体），不得使用 Word 内置标题样式（Heading 1-3）自带的字体
+- 字体颜色必须显式设置为黑色（RGB 0,0,0），不得继承 Word 内置标题样式的蓝色主题色
+- Heading 1 必须居中对齐
+- Heading 2/3 左对齐（或按模板配置）
+- 字号、加粗、段前段后间距均从模板配置读取
+
+禁止：
+
+- 使用 `add_heading()` API（会引入 Word 内置标题样式的蓝色、Calibri Light 等默认格式）
+- 标题字体颜色不设置或设为 `None`（会导致继承内置样式的蓝色）
 
 ---
 

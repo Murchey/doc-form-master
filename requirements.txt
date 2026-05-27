@@ -10,3 +10,4 @@ deep-translator
 langdetect
 matplotlib
 fonttools
+Flask

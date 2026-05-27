@@ -22,7 +22,38 @@ DEFAULT_TEMPLATE = {
     "page": {"margin_top": 2.54, "margin_bottom": 2.54, "margin_left": 3.18, "margin_right": 3.18},
     "toc": {"enabled": False, "title": "目  录", "title_font": "黑体", "title_size": 16, "entry_font": "宋体", "entry_size": 12, "max_level": 3, "indent_step": 2, "dot_leaders": True},
     "header": {"enabled": False, "text": "", "font": "宋体", "size": 9, "alignment": "center", "separator_line": True},
-    "footer": {"enabled": False, "page_number_format": "arabic", "font": "宋体", "size": 9, "alignment": "center"}
+    "footer": {"enabled": False, "page_number_format": "arabic", "font": "宋体", "size": 9, "alignment": "center"},
+    "cover": {
+        "enabled": False,
+        "title": {
+            "text": "课程作业",
+            "font": "黑体",
+            "size": 22,
+            "bold": True,
+            "alignment": "center",
+            "color": "#000000"
+        },
+        "info_items": [
+            {"label": "学号", "value": "", "font": "宋体", "size": 14},
+            {"label": "姓名", "value": "", "font": "宋体", "size": 14},
+            {"label": "学院", "value": "", "font": "宋体", "size": 14},
+            {"label": "专业", "value": "", "font": "宋体", "size": 14},
+            {"label": "指导教师", "value": "", "font": "宋体", "size": 14},
+            {"label": "日期", "value": "", "font": "宋体", "size": 14}
+        ],
+        "logo": {
+            "enabled": False,
+            "image_data": "",
+            "width": 120,
+            "height": 120,
+            "position": "top"
+        },
+        "layout": {
+            "vertical_align": "center",
+            "spacing_after_title": 60,
+            "spacing_between_items": 10
+        }
+    }
 }
 
 
@@ -126,6 +157,13 @@ def build_preview_html(state):
 
     all_headings = state.get_all_headings()
 
+    cover_cfg = cfg.get("cover", DEFAULT_TEMPLATE["cover"])
+    cover_enabled = cover_cfg.get("enabled", False)
+    cover_title = cover_cfg.get("title", {})
+    cover_info_items = cover_cfg.get("info_items", [])
+    cover_logo = cover_cfg.get("logo", {})
+    cover_layout = cover_cfg.get("layout", {})
+
     cover_section = ""
     if state.has_cover():
         cover_paras = state.get_cover_paras()
@@ -143,12 +181,18 @@ def build_preview_html(state):
             <div class="control-row">
                 <label><input type="checkbox" id="keep-cover" checked> 保留原始封面页设计</label>
             </div>
+            <div class="control-row">
+                <label><input type="checkbox" id="redesign-cover" onchange="toggleCoverDesign()"> 重新设计封面页</label>
+            </div>
         </div>'''
     else:
         cover_section = '''
         <div class="section-block" id="cover-section">
             <h2 class="section-title">封面页 <span class="badge empty">未检测到</span></h2>
             <p class="info-text">文档未检测到封面页。</p>
+            <div class="control-row">
+                <label><input type="checkbox" id="redesign-cover" onchange="toggleCoverDesign()"> 设计封面页</label>
+            </div>
         </div>'''
 
     toc_existing_section = ""
@@ -296,6 +340,62 @@ body {{ font-family: "{chinese_font}", sans-serif; background: #f0f2f5; color: #
     <div class="section-block">
         <h2 class="section-title">样式配置</h2>
 
+        <div class="toggle-group" id="cover-design-group" style="display: {'block' if cover_enabled else 'none'};">
+            <div class="toggle-header">
+                <label>封面设计</label>
+                <span class="badge gen">自定义</span>
+            </div>
+            <div class="toggle-body show" id="cover-design-options">
+                <div class="config-group">
+                    <h3>大标题</h3>
+                    <div class="config-row"><label>标题文本</label><input type="text" id="cfg-cover-title-text" value="{cover_title.get('text', '课程作业')}"></div>
+                    <div class="config-row"><label>字体</label><input type="text" id="cfg-cover-title-font" value="{cover_title.get('font', '黑体')}"></div>
+                    <div class="config-row"><label>字号</label><input type="number" id="cfg-cover-title-size" value="{cover_title.get('size', 22)}" min="16" max="36"></div>
+                    <div class="config-row"><label>对齐</label>
+                        <select id="cfg-cover-title-align">
+                            <option value="center" {"selected" if cover_title.get('alignment') == 'center' else ""}>居中</option>
+                            <option value="left" {"selected" if cover_title.get('alignment') == 'left' else ""}>左对齐</option>
+                        </select>
+                    </div>
+                    <div class="config-row"><label>颜色</label><input type="color" id="cfg-cover-title-color" value="{cover_title.get('color', '#000000')}"></div>
+                </div>
+
+                <div class="config-group">
+                    <h3>个人信息</h3>
+                    <div id="cover-info-items">
+                        {"".join(f'<div class="config-row cover-info-row"><label>{item.get("label", "")}</label><input type="text" class="cover-info-value" data-label="{item.get("label", "")}" value="{item.get("value", "")}" placeholder="请输入{item.get("label", "")}"></div>' for item in cover_info_items)}
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top:8px;font-size:12px;padding:4px 12px;" onclick="addCoverInfoItem()">+ 添加信息项</button>
+                </div>
+
+                <div class="config-group">
+                    <h3>学校标志</h3>
+                    <div class="config-row"><label><input type="checkbox" id="cfg-cover-logo-enabled" {"checked" if cover_logo.get('enabled') else ""}> 显示Logo</label></div>
+                    <div class="config-row"><label>Logo图片</label><input type="file" id="cfg-cover-logo-file" accept="image/*" onchange="handleLogoUpload(this)"></div>
+                    <div class="config-row"><label>宽度(px)</label><input type="number" id="cfg-cover-logo-width" value="{cover_logo.get('width', 120)}" min="50" max="300"></div>
+                    <div class="config-row"><label>高度(px)</label><input type="number" id="cfg-cover-logo-height" value="{cover_logo.get('height', 120)}" min="50" max="300"></div>
+                    <div class="config-row"><label>位置</label>
+                        <select id="cfg-cover-logo-position">
+                            <option value="top" {"selected" if cover_logo.get('position') == 'top' else ""}>顶部</option>
+                            <option value="center" {"selected" if cover_logo.get('position') == 'center' else ""}>居中</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="config-group">
+                    <h3>布局设置</h3>
+                    <div class="config-row"><label>垂直对齐</label>
+                        <select id="cfg-cover-layout-valign">
+                            <option value="center" {"selected" if cover_layout.get('vertical_align') == 'center' else ""}>居中</option>
+                            <option value="top" {"selected" if cover_layout.get('vertical_align') == 'top' else ""}>顶部</option>
+                        </select>
+                    </div>
+                    <div class="config-row"><label>标题后间距</label><input type="number" id="cfg-cover-layout-spacing-title" value="{cover_layout.get('spacing_after_title', 60)}" min="20" max="120"></div>
+                    <div class="config-row"><label>信息项间距</label><input type="number" id="cfg-cover-layout-spacing-items" value="{cover_layout.get('spacing_between_items', 10)}" min="5" max="30"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="config-group">
             <h3>正文字体</h3>
             <div class="config-row"><label>中文字体</label><input type="text" id="cfg-chinese-font" value="{chinese_font}"></div>
@@ -409,9 +509,71 @@ function toggleSection(name) {{
     const body = document.getElementById(name + "-options");
     if (cb && body) body.classList.toggle("show", cb.checked);
 }}
+
+function toggleCoverDesign() {{
+    const cb = document.getElementById("redesign-cover");
+    const group = document.getElementById("cover-design-group");
+    if (cb && group) group.style.display = cb.checked ? "block" : "none";
+}}
+
+function addCoverInfoItem() {{
+    const container = document.getElementById("cover-info-items");
+    const div = document.createElement("div");
+    div.className = "config-row cover-info-row";
+    div.innerHTML = '<label><input type="text" class="cover-info-label" value="新标签" style="width:60px;"></label><input type="text" class="cover-info-value" placeholder="请输入内容"><button style="background:none;border:none;color:#e53935;cursor:pointer;font-size:16px;" onclick="this.parentElement.remove()">×</button>';
+    container.appendChild(div);
+}}
+
+function handleLogoUpload(input) {{
+    if (input.files && input.files[0]) {{
+        const reader = new FileReader();
+        reader.onload = function(e) {{
+            window._coverLogoData = e.target.result;
+        }};
+        reader.readAsDataURL(input.files[0]);
+    }}
+}}
+
+function getCoverConfig() {{
+    const infoItems = [];
+    document.querySelectorAll(".cover-info-row").forEach(row => {{
+        const labelInput = row.querySelector(".cover-info-label");
+        const valueInput = row.querySelector(".cover-info-value");
+        const label = labelInput ? labelInput.value : (valueInput ? valueInput.dataset.label : "");
+        const value = valueInput ? valueInput.value : "";
+        if (label) infoItems.push({{ label: label, value: value, font: "宋体", size: 14 }});
+    }});
+
+    return {{
+        enabled: document.getElementById("redesign-cover") ? document.getElementById("redesign-cover").checked : false,
+        title: {{
+            text: document.getElementById("cfg-cover-title-text") ? document.getElementById("cfg-cover-title-text").value : "课程作业",
+            font: document.getElementById("cfg-cover-title-font") ? document.getElementById("cfg-cover-title-font").value : "黑体",
+            size: document.getElementById("cfg-cover-title-size") ? parseInt(document.getElementById("cfg-cover-title-size").value) : 22,
+            bold: true,
+            alignment: document.getElementById("cfg-cover-title-align") ? document.getElementById("cfg-cover-title-align").value : "center",
+            color: document.getElementById("cfg-cover-title-color") ? document.getElementById("cfg-cover-title-color").value : "#000000"
+        }},
+        info_items: infoItems,
+        logo: {{
+            enabled: document.getElementById("cfg-cover-logo-enabled") ? document.getElementById("cfg-cover-logo-enabled").checked : false,
+            image_data: window._coverLogoData || "",
+            width: document.getElementById("cfg-cover-logo-width") ? parseInt(document.getElementById("cfg-cover-logo-width").value) : 120,
+            height: document.getElementById("cfg-cover-logo-height") ? parseInt(document.getElementById("cfg-cover-logo-height").value) : 120,
+            position: document.getElementById("cfg-cover-logo-position") ? document.getElementById("cfg-cover-logo-position").value : "top"
+        }},
+        layout: {{
+            vertical_align: document.getElementById("cfg-cover-layout-valign") ? document.getElementById("cfg-cover-layout-valign").value : "center",
+            spacing_after_title: document.getElementById("cfg-cover-layout-spacing-title") ? parseInt(document.getElementById("cfg-cover-layout-spacing-title").value) : 60,
+            spacing_between_items: document.getElementById("cfg-cover-layout-spacing-items") ? parseInt(document.getElementById("cfg-cover-layout-spacing-items").value) : 10
+        }}
+    }};
+}}
+
 function confirmDesign() {{
     const config = {{
         cover_preserved: document.getElementById("keep-cover") ? document.getElementById("keep-cover").checked : true,
+        redesign_cover: document.getElementById("redesign-cover") ? document.getElementById("redesign-cover").checked : false,
         toc_preserved: document.getElementById("keep-toc") ? document.getElementById("keep-toc").checked : true,
         fonts: {{
             chinese: {{ family: document.getElementById("cfg-chinese-font").value, size: parseInt(document.getElementById("cfg-body-size").value) }},
@@ -457,7 +619,8 @@ function confirmDesign() {{
             font: document.getElementById("cfg-footer-font").value,
             size: parseInt(document.getElementById("cfg-footer-size").value),
             alignment: document.getElementById("cfg-footer-align").value
-        }}
+        }},
+        cover: getCoverConfig()
     }};
     fetch("/confirm", {{
         method: "POST",

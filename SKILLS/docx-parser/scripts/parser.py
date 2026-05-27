@@ -286,48 +286,52 @@ class DocxParser:
             return
 
         cover_end = 0
-        first_heading_idx = None
-        for i, p in enumerate(paras):
-            text = (p.get("text") or "").strip()
-            style = p.get("style") or ""
-            alignment = p.get("alignment") or ""
-            has_substantial = len(text) > 10
-
-            if "Heading" in style or "Title" in style:
-                if first_heading_idx is None:
-                    first_heading_idx = i
-                if has_substantial:
-                    cover_end = i
-                    break
-
-            if not text and first_heading_idx is None:
-                continue
-
-        if cover_end == 0 and first_heading_idx is not None:
-            cover_end = first_heading_idx
-        elif cover_end == 0:
-            cover_end = 0
-
         toc_start = -1
         toc_end = -1
+
         for i, p in enumerate(paras):
             text = (p.get("text") or "").strip()
-            style = p.get("style") or ""
-            if any(kw in text for kw in ["目录", "目 录", "Table of Contents"]):
+            style = (p.get("style") or "").lower()
+            
+            if "heading 1" in style:
+                if toc_start >= 0 and toc_end < 0:
+                    toc_end = i
+                if cover_end == 0:
+                    cover_end = i
+                break
+            
+            if any(kw in text for kw in ["目录", "目 录", "目  录", "Table of Contents", "Contents"]):
                 toc_start = i
-            if "TOC" in style:
+            
+            if "toc" in style:
                 if toc_start < 0:
                     toc_start = i
                 toc_end = i + 1
 
+        if cover_end == 0:
+            for i, p in enumerate(paras):
+                text = (p.get("text") or "").strip()
+                if text and len(text) > 5:
+                    style = (p.get("style") or "").lower()
+                    if "heading" in style:
+                        cover_end = i
+                        break
+
         if toc_start >= 0 and toc_end < 0:
-            toc_end = toc_start + 1
+            for i in range(toc_start + 1, len(paras)):
+                style = (paras[i].get("style") or "").lower()
+                text = (paras[i].get("text") or "").strip()
+                if "heading 1" in style or (text and "heading" not in style and len(text) > 20):
+                    toc_end = i
+                    break
+            if toc_end < 0:
+                toc_end = min(toc_start + 20, len(paras))
 
         for i, p in enumerate(paras):
-            if i < cover_end:
-                p["section"] = "cover"
-            elif toc_start >= 0 and toc_start <= i < toc_end:
+            if toc_start >= 0 and toc_start <= i < toc_end:
                 p["section"] = "toc"
+            elif i < cover_end:
+                p["section"] = "cover"
             else:
                 p["section"] = "body"
 

@@ -4,11 +4,16 @@ import shutil
 import tempfile
 from pathlib import Path
 from docx import Document
-from docx.shared import Pt, Cm
+from docx.shared import Pt, Cm, Emu
 from docx.shared import RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+
+try:
+    from PIL import Image as PILImage
+except ImportError:
+    PILImage = None
 
 
 class ASTToDocxConverter:
@@ -68,6 +73,13 @@ class ASTToDocxConverter:
         section.left_margin = Cm(3.18)
         section.right_margin = Cm(3.18)
 
+    def _get_available_width(self):
+        section = self.doc.sections[0]
+        page_width = section.page_width
+        left_margin = section.left_margin
+        right_margin = section.right_margin
+        return page_width - left_margin - right_margin
+
     def _add_image_to_paragraph(self, para, run_data):
         img_data_b64 = run_data.get("image_data", "")
         img_format = run_data.get("image_format", "png")
@@ -79,12 +91,34 @@ class ASTToDocxConverter:
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(img_bytes)
                 tmp_path = tmp.name
+
+            image_cfg = self.template_config.get("image", {})
+            max_width_percent = image_cfg.get("max_width_percent", 80) / 100.0
+            available_width = self._get_available_width()
+            max_width = int(available_width * max_width_percent)
+
+            img_width = None
+            img_height = None
+            if PILImage:
+                try:
+                    with PILImage.open(tmp_path) as pil_img:
+                        img_width, img_height = pil_img.size
+                except Exception:
+                    pass
+
             run = para.add_run()
-            run.add_picture(tmp_path)
+            if img_width and img_height and img_width > max_width:
+                ratio = max_width / img_width
+                new_height = int(img_height * ratio)
+                run.add_picture(tmp_path, width=Emu(max_width), height=Emu(new_height))
+            else:
+                run.add_picture(tmp_path, width=Emu(max_width))
+
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             Path(tmp_path).unlink(missing_ok=True)
             self._image_counter += 1
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARNING] Image processing error: {e}")
 
     @staticmethod
     def _clear_paragraph(para):
@@ -106,6 +140,12 @@ class ASTToDocxConverter:
             para_data = ast_paras[i]
 
             if self._is_protected(para_data):
+                continue
+
+            if self._is_code_block(para_data):
+                para = doc_paras[i]
+                self._clear_paragraph(para)
+                para._element.addnext(self._add_code_block_to_table(para_data)._element)
                 continue
 
             runs = para_data.get("runs", [])
@@ -170,6 +210,56 @@ class ASTToDocxConverter:
         fonts_cfg = self.template_config.get("fonts", {})
         return fonts_cfg.get("chinese", {}).get("size", 12)
 
+    def _get_default_font(self, is_chinese=True):
+        fonts_cfg = self.template_config.get("fonts", {})
+        if is_chinese:
+            return fonts_cfg.get("chinese", {}).get("family", "宋体")
+        return fonts_cfg.get("english", {}).get("family", "Times New Roman")
+
+    @staticmethod
+    def _is_code_block(para_data):
+        style = (para_data.get("style") or "").lower()
+        if "code" in style or "source" in style:
+            return True
+        runs = para_data.get("runs", [])
+        if not runs:
+            return False
+        code_fonts = ["consolas", "courier new", "monaco", "menlo", "dejavu sans mono", "liberation mono"]
+        for run in runs:
+            font = (run.get("font_name") or "").lower()
+            if font in code_fonts:
+                return True
+        return False
+
+    def _add_code_block_to_table(self, para_data):
+        table = self.doc.add_table(rows=1, cols=1)
+        table.style = 'Table Grid'
+        cell = table.cell(0, 0)
+        cell_para = cell.paragraphs[0]
+        
+        for run_data in para_data.get("runs", []):
+            run = cell_para.add_run(run_data.get("text", ""))
+            font_name = run_data.get("font_name") or "Consolas"
+            run.font.name = font_name
+            rpr = run._element.get_or_add_rPr()
+            rFonts = rpr.find(qn('w:rFonts'))
+            if rFonts is None:
+                rFonts = OxmlElement('w:rFonts')
+                rpr.insert(0, rFonts)
+            rFonts.set(qn('w:ascii'), font_name)
+            rFonts.set(qn('w:hAnsi'), font_name)
+            rFonts.set(qn('w:eastAsia'), font_name)
+            if run_data.get("font_size"):
+                try:
+                    size = int(run_data["font_size"].replace("pt", ""))
+                    run.font.size = Pt(size)
+                except Exception:
+                    run.font.size = Pt(10)
+            else:
+                run.font.size = Pt(10)
+
+        return table
+
     def _char_indent(self, char_count):
         body_size = self._get_body_font_size()
         return Pt(int(char_count * body_size))
@@ -212,11 +302,12 @@ class ASTToDocxConverter:
                 run.bold = True
             if run_data.get("italic"):
                 run.italic = True
-            if run_data.get("font_name"):
-                font_name = run_data["font_name"]
-                text_content = run_data.get("text", "")
-                is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text_content)
-                self.set_run_font(run, font_name, is_chinese)
+            font_name = run_data.get("font_name")
+            text_content = run_data.get("text", "")
+            is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text_content)
+            if not font_name:
+                font_name = self._get_default_font(is_chinese)
+            self.set_run_font(run, font_name, is_chinese)
             if run_data.get("font_size"):
                 try:
                     size = int(run_data["font_size"].replace("pt", ""))
@@ -227,6 +318,10 @@ class ASTToDocxConverter:
     def convert_paragraphs(self):
         for para_data in self.ast.get("paragraphs", []):
             if self._is_protected(para_data):
+                continue
+
+            if self._is_code_block(para_data):
+                self._add_code_block_to_table(para_data)
                 continue
 
             runs = para_data.get("runs", [])
@@ -280,11 +375,12 @@ class ASTToDocxConverter:
                     run.bold = True
                 if run_data.get("italic"):
                     run.italic = True
-                if run_data.get("font_name"):
-                    font_name = run_data["font_name"]
-                    text_content = run_data.get("text", "")
-                    is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text_content)
-                    self.set_run_font(run, font_name, is_chinese)
+                font_name = run_data.get("font_name")
+                text_content = run_data.get("text", "")
+                is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text_content)
+                if not font_name:
+                    font_name = self._get_default_font(is_chinese)
+                self.set_run_font(run, font_name, is_chinese)
                 if run_data.get("font_size"):
                     try:
                         size = int(run_data["font_size"].replace("pt", ""))

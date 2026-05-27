@@ -156,6 +156,31 @@ Skill 启动时必须：
 
 ---
 
+# Image Processing Rules
+图片处理必须遵循模板配置（`image` 配置项）：
+
+配置项说明：
+```yaml
+image:
+  alignment: center          # 图片对齐方式
+  keep_ratio: true           # 保持宽高比
+  max_width_percent: 80      # 最大宽度占可用宽度的百分比
+  spacing_before: 12         # 图片前间距
+  spacing_after: 12          # 图片后间距
+```
+
+处理规则：
+1. 计算可用宽度：页面宽度 - 左边距 - 右边距
+2. 计算最大图片宽度：可用宽度 × max_width_percent / 100
+3. 使用 PIL 获取图片原始尺寸
+4. 如果图片宽度超过最大宽度，按比例缩放（保持宽高比）
+5. 设置图片段落居中对齐
+6. 图片 run（`type: "image"`）必须保留，禁止删除或修改图片数据
+
+禁止：拉伸图片、压缩失真、改变宽高比、删除图片
+
+---
+
 # Formula Protection Rules
 禁止：修改公式XML、修改公式编号、删除公式
 公式仅允许：调整对齐、调整间距
@@ -163,8 +188,19 @@ Skill 启动时必须：
 ---
 
 # Code Block Protection Rules
+代码块必须放入1x1表格内，以区分正文和代码。
+
+检测规则：
+- 样式名包含 "code" 或 "source"
+- 字体为等宽字体（Consolas、Courier New、Monaco、Menlo 等）
+
+处理规则：
+- 创建1x1表格（Table Grid 样式）
+- 将代码块内容放入表格单元格
+- 使用等宽字体（默认 Consolas）
+- 字号默认 10pt
+
 禁止：修改代码内容、删除缩进、自动重构代码
-仅允许：设置等宽字体、设置段落间距
 
 ---
 

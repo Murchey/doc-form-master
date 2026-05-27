@@ -24,16 +24,17 @@ tools:
 
 ```text
 SKILLS/
-├── docx-parser/          # DOCX 结构解析
-├── xml-safety/           # XML 安全校验
-├── formula-protection/   # 数学公式保护
-├── template-engine/      # 模板管理
-├── font-manager/         # 字体兼容管理
-├── format-normalizer/    # 格式标准化
-├── preview-design/       # 设计预览与用户确认
-├── image-layout/         # 图片布局优化
-├── translation-engine/   # 中英互译
-└── pdf-export/           # PDF 导出
+├── docx-parser/              # DOCX 结构解析
+├── xml-safety/               # XML 安全校验
+├── formula-protection/       # 数学公式保护
+├── template-engine/          # 模板管理
+├── font-manager/             # 字体兼容管理
+├── format-normalizer/        # 格式标准化（已有格式文档）
+├── zero-format-normalizer/   # 零格式标准化（纯文本/无格式文档）
+├── preview-design/           # 设计预览与用户确认
+├── image-layout/             # 图片布局优化
+├── translation-engine/       # 中英互译
+└── pdf-export/               # PDF 导出
 ```
 
 ---
@@ -50,16 +51,18 @@ SKILLS/
 - 禁止一次性列出或读取所有 SKILL.md 文件
 
 ```text
-Step 3 (docx-parser)       → SKILLS/docx-parser/SKILL.md + scripts/parser.py
-Step 4 (xml-safety)        → SKILLS/xml-safety/SKILL.md
-Step 5 (formula-protection)→ SKILLS/formula-protection/SKILL.md
-Step 6 (template-engine)   → SKILLS/template-engine/SKILL.md + custom/ 模板
-Step 7 (font-manager)      → SKILLS/font-manager/SKILL.md + scripts/font_detector.py
-Step 8 (preview-design)    → SKILLS/preview-design/SKILL.md + scripts/preview_server.py
-Step 9 (format-normalizer) → SKILLS/format-normalizer/SKILL.md + scripts/ast_to_docx.py
-Step 10 (image-layout)     → SKILLS/image-layout/SKILL.md
-Step 11 (translation)      → 条件执行，需要时才读取
-Step 12 (pdf-export)       → 条件执行，需要时才读取
+Step 3  (docx-parser)            → SKILLS/docx-parser/SKILL.md + scripts/parser.py
+Step 3b (格式质量检测)            → 分析 AST，决定走「已格式化」还是「零格式」分支
+Step 4  (xml-safety)             → SKILLS/xml-safety/SKILL.md
+Step 5  (formula-protection)     → SKILLS/formula-protection/SKILL.md
+Step 6  (template-engine)        → SKILLS/template-engine/SKILL.md + custom/ 模板
+Step 7  (font-manager)           → SKILLS/font-manager/SKILL.md + scripts/font_detector.py
+Step 8  (preview-design)         → SKILLS/preview-design/SKILL.md + scripts/preview_server.py
+Step 9a (format-normalizer)      → SKILLS/format-normalizer/SKILL.md + scripts/ast_to_docx.py（已格式化文档）
+Step 9b (zero-format-normalizer) → SKILLS/zero-format-normalizer/SKILL.md + scripts/zero_format_normalizer.py（纯文本/无格式文档）
+Step 10 (image-layout)           → SKILLS/image-layout/SKILL.md
+Step 11 (translation)            → 条件执行，需要时才读取
+Step 12 (pdf-export)             → 条件执行，需要时才读取
 ```
 
 ---
@@ -67,13 +70,26 @@ Step 12 (pdf-export)       → 条件执行，需要时才读取
 # Skill Dependency Graph
 
 ```text
-docx-parser → xml-safety → formula-protection → template-engine → font-manager
-                                                                    ↓
-                                                              preview-design (用户确认)
-                                                                    ↓
-                                                              format-normalizer → image-layout
-                                                                                    ↓
-                                                                            translation (可选) → pdf-export (可选)
+docx-parser → 格式质量检测
+                │
+    ┌───────────┴───────────┐
+    ▼                       ▼
+已格式化路径              零格式路径
+    │                       │
+xml-safety              template-engine → font-manager
+    │                       │
+formula-protection      preview-design (用户确认)
+    │                       │
+template-engine             │
+    │                       ▼
+font-manager        zero-format-normalizer → 生成 formatted.docx
+    │
+preview-design (用户确认)
+    │
+    ▼
+format-normalizer → image-layout
+                        │
+                translation (可选) → pdf-export (可选)
 ```
 
 ---
@@ -93,11 +109,16 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 交互模板：
 ```text
 1. 文档类型：中文论文 / 英文论文 / 公文 / 自定义模板
-2. 是否翻译：不翻译 / 中→英 / 英→中
-3. 是否导出PDF：是 / 否
-4. 是否优化图片：是 / 否
-5. 是否保护公式：是（默认） / 否
+2. 格式质量：已有格式（默认） / 纯文本/无格式
+3. 是否翻译：不翻译 / 中→英 / 英→中
+4. 是否导出PDF：是 / 否
+5. 是否优化图片：是 / 否
+6. 是否保护公式：是（默认） / 否
 ```
+
+格式质量映射：
+- 已有格式 → 走已格式化路径（xml-safety → formula-protection → format-normalizer）
+- 纯文本/无格式 → 走零格式路径（zero-format-normalizer 直接生成规范文档）
 
 文档类型映射：
 - 中文论文 → chinese_academic.yaml
@@ -121,6 +142,47 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 > **按需加载**：此刻读取 `SKILLS/docx-parser/SKILL.md` 和 `SKILLS/docx-parser/scripts/parser.py`。
 
 解析文档结构，生成 AST。输入：用户 DOCX 文件。输出：`document_ast`
+
+## Step 3b: 格式质量检测（路径分支）
+分析 `document_ast` 的段落格式信息，判断文档的格式质量。
+
+检测规则：
+1. 检查段落的 `style` 字段：如果绝大多数段落 style 为 `"Normal"` 且无 Heading 样式，判定为零格式
+2. 检查 runs 中的 `font_name`/`font_size`：如果大量为 `None` 或缺失，判定为零格式
+3. 检查是否存在标题检测模式（编号模式如 `1.`、`2.1`、`3.1.2` 等）
+
+判定结果：
+- **已格式化**：文档有标题样式、字体配置、段落格式 → 继续 Step 4（已格式化路径）
+- **零格式**：文档无任何格式，仅含纯文本内容 → 跳转 Step 3c（零格式路径）
+
+也可由用户在交互中显式指定「纯文本/无格式」，直接走零格式路径。
+
+## Step 3c: 零格式路径（条件执行）
+> **按需加载**：此刻读取 `SKILLS/zero-format-normalizer/SKILL.md` 和 `SKILLS/zero-format-normalizer/scripts/zero_format_normalizer.py`。
+
+当文档判定为零格式时，跳过 Step 4-9a，直接执行：
+
+1. Step 6（template-engine）：加载用户选择的模板 → `template_config`
+2. Step 7（font-manager）：验证字体可用性 → `font_mapping`
+3. Step 8（preview-design）：设计预览与用户确认 → `edited_config`
+4. **Step 9b（zero-format-normalizer）**：
+   - 从源 DOCX 中提取纯文本内容（剥离所有格式）
+   - 自动检测文档结构（封面、目录、标题、正文、参考文献）
+   - 按模板配置生成全新的规范格式文档
+   - 输出：`workspace/output/formatted.docx`
+5. 跳转 Step 10（image-layout）继续后续处理
+
+输入：源 DOCX + `template_config` + `font_mapping`。输出：格式化后的 DOCX。
+
+### 零格式处理规则
+- 提取所有文本内容，忽略原始格式
+- 保留图片（从原始 DOCX 中提取媒体文件）
+- 保留表格结构（行、列、内容）
+- 自动检测标题：匹配编号模式（`1.`、`2.1`、`3.1.2`）或特殊格式
+- 自动检测封面：文档开头到第一个标题之间的段落
+- 自动检测目录：包含「目录」「Table of Contents」等关键词的段落
+- 自动检测参考文献：包含「参考文献」「References」等关键词的段落
+- 封面页/目录页/正文页分节处理，页眉页脚独立配置
 
 ## Step 4: 调用 xml-safety
 > **按需加载**：此刻读取 `SKILLS/xml-safety/SKILL.md`。
@@ -157,7 +219,7 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 
 用户确认后将配置合并到 `template_config`（含 toc / header / footer 键）。
 
-## Step 9: 调用 format-normalizer
+## Step 9a: 调用 format-normalizer（已格式化路径）
 > **按需加载**：此刻读取 `SKILLS/format-normalizer/SKILL.md`、`SKILLS/format-normalizer/scripts/ast_to_docx.py`。
 
 执行格式标准化。输入：`protected_ast` + `template_config` + `font_mapping` + 源 DOCX 路径。输出：`normalized_ast` + 格式化后的 DOCX。
@@ -236,6 +298,18 @@ workspace/logs/                # 处理日志
 - 字体颜色必须显式设置为黑色（RGB 0,0,0），不得继承蓝色主题色
 - Heading 1 必须居中对齐，Heading 2/3 左对齐（或按模板配置）
 - 禁止使用 `add_heading()` API（会引入蓝色、Calibri Light 等默认格式）
+
+## Zero Format Rules
+适用于纯文本/无格式文档的处理：
+- 必须：保留所有文本内容、保留图片、保留表格结构
+- 必须：从原始 DOCX 中提取媒体文件，重新嵌入格式化后的文档
+- 必须：自动检测文档结构（封面、目录、标题、正文、参考文献）
+- 必须：使用模板配置的字体，不依赖原始文档格式
+- 禁止：丢失文本内容、丢失图片、破坏表格结构
+- 标题检测规则：匹配编号模式 `N.`、`N.N`、`N.N.N`（N 为数字）
+- 封面检测规则：第一个标题之前的段落判定为封面
+- 目录检测规则：包含「目录」「目 录」「Table of Contents」关键词的段落
+- 参考文献检测规则：包含「参考文献」「References」「Bibliography」关键词的段落
 
 ## Error Handling
 如果 DOCX损坏、XML异常、relationship丢失、PDF导出失败、公式损坏：停止后续处理、输出错误日志、回滚至最近checkpoint、保留原始文件

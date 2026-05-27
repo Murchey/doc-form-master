@@ -75,9 +75,11 @@ tools:
 
 ---
 
-# Supported Skills
+# Supported Skills（参考索引，禁止预加载）
 
-Agent 必须调度：
+以下为可用 SKILL 清单，**仅作索引参考**。
+禁止在流程开始前一次性读取所有 SKILL 文件。
+每个 SKILL 必须在执行到对应步骤时才按需读取。
 
 ```text
 SKILLS/
@@ -95,7 +97,43 @@ SKILLS/
 
 ---
 
-# Skill Dependency Graph
+# SKILL 按需加载规则（Lazy Loading）
+
+**核心原则：每个 SKILL 的 SKILL.md 和 scripts/ 仅在执行到该步骤时才读取。**
+
+必须遵守：
+
+- 流程开始时只读取 AGENT.md 本身
+- 到达某个 Step 时，才读取该 Step 对应的 `SKILLS/<skill-name>/SKILL.md`
+- 需要调用脚本时，才读取 `SKILLS/<skill-name>/scripts/` 下的代码
+- 禁止在 Step 1 之前或期间预读取后续 SKILL 的内容
+- 禁止一次性列出或读取所有 SKILL.md 文件
+
+按需加载流程：
+
+```text
+Step 3 (docx-parser)     → 此时才读取 SKILLS/docx-parser/SKILL.md 和 scripts/parser.py
+Step 4 (xml-safety)      → 此时才读取 SKILLS/xml-safety/SKILL.md
+Step 5 (formula-protection) → 此时才读取 SKILLS/formula-protection/SKILL.md
+Step 6 (template-engine) → 此时才读取 SKILLS/template-engine/SKILL.md 和 custom/ 模板
+Step 7 (font-manager)    → 此时才读取 SKILLS/font-manager/SKILL.md
+Step 8 (preview-design)  → 此时才读取 SKILLS/preview-design/SKILL.md 和 scripts/preview_server.py
+Step 9 (format-normalizer) → 此时才读取 SKILLS/format-normalizer/SKILL.md、scripts/normalizer.py、scripts/ast_to_docx.py
+Step 10 (image-layout)   → 此时才读取 SKILLS/image-layout/SKILL.md
+Step 11 (translation-engine) → 条件执行，需要时才读取
+Step 12 (pdf-export)     → 条件执行，需要时才读取 SKILLS/pdf-export/SKILL.md 和 scripts/pdf_exporter.py
+```
+
+原因：
+
+- 减少不必要的上下文占用
+- 避免混淆不同 SKILL 的职责边界
+- 确保每个 SKILL 的规则只在相关步骤中生效
+- 防止智能体在早期步骤中提前执行后续步骤的逻辑
+
+---
+
+# Skill Dependency Graph（参考图）
 
 ```text
 docx-parser
@@ -213,6 +251,8 @@ Agent 必须一次性收集所有用户需求，避免多次打断。
 
 # Execution Pipeline
 
+**重要：严格按顺序执行，每个 Step 到达时才读取对应 SKILL 文件。禁止提前读取。**
+
 ## 阶段划分
 
 ```text
@@ -251,6 +291,8 @@ Phase 5: 后处理 (条件执行)
 
 ## Step 3: 调用 docx-parser
 
+> **按需加载**：此刻读取 `SKILLS/docx-parser/SKILL.md` 和 `SKILLS/docx-parser/scripts/parser.py`。
+
 解析文档结构，生成 AST。
 
 输入：用户 DOCX 文件
@@ -260,6 +302,8 @@ Phase 5: 后处理 (条件执行)
 ---
 
 ## Step 4: 调用 xml-safety
+
+> **按需加载**：此刻读取 `SKILLS/xml-safety/SKILL.md`。
 
 验证 XML 安全性。
 
@@ -273,6 +317,8 @@ Phase 5: 后处理 (条件执行)
 
 ## Step 5: 调用 formula-protection
 
+> **按需加载**：此刻读取 `SKILLS/formula-protection/SKILL.md`。
+
 锁定并保护数学公式。
 
 输入：`validated_ast`
@@ -283,6 +329,8 @@ Phase 5: 后处理 (条件执行)
 
 ## Step 6: 调用 template-engine
 
+> **按需加载**：此刻读取 `SKILLS/template-engine/SKILL.md`、`SKILLS/format-normalizer/scripts/template_loader.py` 和 `SKILLS/format-normalizer/custom/` 下的模板文件。
+
 加载用户选择的模板。
 
 输入：用户选择的模板类型
@@ -292,6 +340,8 @@ Phase 5: 后处理 (条件执行)
 ---
 
 ## Step 7: 调用 font-manager
+
+> **按需加载**：此刻读取 `SKILLS/font-manager/SKILL.md` 和 `SKILLS/font-manager/scripts/font_detector.py`。
 
 验证字体可用性，生成 fallback 映射。
 
@@ -304,6 +354,8 @@ Phase 5: 后处理 (条件执行)
 ---
 
 ## Step 8: 调用 preview-design（设计预览与用户确认）
+
+> **按需加载**：此刻读取 `SKILLS/preview-design/SKILL.md` 和 `SKILLS/preview-design/scripts/preview_server.py`。
 
 在浏览器中预览文档设计，等待用户确认。
 
@@ -338,6 +390,8 @@ Phase 5: 后处理 (条件执行)
 
 ## Step 9: 调用 format-normalizer
 
+> **按需加载**：此刻读取 `SKILLS/format-normalizer/SKILL.md`、`SKILLS/format-normalizer/scripts/normalizer.py` 和 `SKILLS/format-normalizer/scripts/ast_to_docx.py`。
+
 执行格式标准化。
 
 输入：`protected_ast` + `template_config`（含用户编辑 + toc/header/footer 配置）+ `font_mapping` + 源 DOCX 路径
@@ -357,6 +411,8 @@ ast_to_docx 阶段额外执行：
 
 ## Step 10: 调用 image-layout
 
+> **按需加载**：此刻读取 `SKILLS/image-layout/SKILL.md`。
+
 优化图片布局。
 
 输入：`normalized_ast`
@@ -369,6 +425,8 @@ ast_to_docx 阶段额外执行：
 
 ## Step 11: 调用 translation-engine (条件执行)
 
+> **按需加载**：仅在用户需要翻译时，才读取 `SKILLS/translation-engine/SKILL.md`。
+
 如果用户需要翻译：
 
 输入：`optimized_ast` + `source_language` + `target_language`
@@ -380,6 +438,8 @@ ast_to_docx 阶段额外执行：
 ---
 
 ## Step 12: 调用 pdf-export (条件执行)
+
+> **按需加载**：仅在用户需要导出 PDF 时，才读取 `SKILLS/pdf-export/SKILL.md` 和 `SKILLS/pdf-export/scripts/pdf_exporter.py`。
 
 如果用户需要导出 PDF：
 

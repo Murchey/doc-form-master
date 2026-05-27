@@ -274,14 +274,36 @@ class ZeroFormatNormalizer:
         self._add_references_section()
         self._create_sections()
         self._add_header_footer()
+        self._enable_auto_update_fields()
 
     def _add_cover_page(self):
         cover_cfg = self.template_config.get("cover", {})
         if not cover_cfg.get("enabled", False):
             return
 
-        for _ in range(6):
-            self.doc.add_paragraph()
+        logo_cfg = cover_cfg.get("logo", {})
+        if logo_cfg.get("enabled", False) and logo_cfg.get("image_data"):
+            import base64
+            import io
+            try:
+                img_data = logo_cfg["image_data"]
+                if img_data.startswith("data:"):
+                    img_data = img_data.split(",", 1)[1]
+                img_bytes = base64.b64decode(img_data)
+                img_stream = io.BytesIO(img_bytes)
+                logo_para = self.doc.add_paragraph()
+                logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                logo_run = logo_para.add_run()
+                logo_width = Cm(logo_cfg.get("width", 120) / 50)
+                logo_run.add_picture(img_stream, width=logo_width)
+            except Exception as e:
+                print(f"[WARNING] Failed to add logo: {e}")
+
+        layout_cfg = cover_cfg.get("layout", {})
+        vertical_align = layout_cfg.get("vertical_align", "center")
+        if vertical_align == "center":
+            for _ in range(4):
+                self.doc.add_paragraph()
 
         title_cfg = cover_cfg.get("title", {})
         title_text = title_cfg.get("text", "课程作业")
@@ -569,29 +591,10 @@ class ZeroFormatNormalizer:
             return
 
         for i, section in enumerate(sections):
-            if i == 0:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
-                if header_cfg.get("enabled", False):
-                    header = section.header
-                    if header.paragraphs:
-                        hp = header.paragraphs[0]
-                        hp.clear()
-                    else:
-                        hp = header.add_paragraph()
-                    hr = hp.add_run("")
-                    hr.font.size = Pt(header_cfg.get("size", 9))
-                if footer_cfg.get("enabled", False):
-                    footer = section.footer
-                    if footer.paragraphs:
-                        fp = footer.paragraphs[0]
-                        fp.clear()
-                    else:
-                        fp = footer.add_paragraph()
-                    fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            elif i == 1:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
+            section.header.is_linked_to_previous = False
+            section.footer.is_linked_to_previous = False
+
+            if i == 0 or i == 1:
                 if header_cfg.get("enabled", False):
                     header = section.header
                     if header.paragraphs:
@@ -610,9 +613,6 @@ class ZeroFormatNormalizer:
                         fp = footer.add_paragraph()
                     fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
             else:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
-
                 if header_cfg.get("enabled", False):
                     header = section.header
                     if header.paragraphs:
@@ -696,6 +696,9 @@ class ZeroFormatNormalizer:
         update_fields = settings_part.find(qn('w:updateFields'))
         if update_fields is not None:
             settings_part.remove(update_fields)
+        update_fields = OxmlElement('w:updateFields')
+        update_fields.set(qn('w:val'), 'true')
+        settings_part.append(update_fields)
 
     @staticmethod
     def _set_run_font(run, font_name, is_chinese=False):

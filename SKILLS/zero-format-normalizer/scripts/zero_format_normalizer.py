@@ -276,25 +276,61 @@ class ZeroFormatNormalizer:
         self._add_header_footer()
 
     def _add_cover_page(self):
-        cover_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "cover"]
+        cover_cfg = self.template_config.get("cover", {})
+        if not cover_cfg.get("enabled", False):
+            return
 
-        for para_data in cover_paras:
-            text = para_data.get("text", "").strip()
-            if not text:
-                para = self.doc.add_paragraph()
-                continue
+        for _ in range(6):
+            self.doc.add_paragraph()
+
+        title_cfg = cover_cfg.get("title", {})
+        title_text = title_cfg.get("text", "课程作业")
+        title_font = title_cfg.get("font", "黑体")
+        title_size = title_cfg.get("size", 22)
+        title_bold = title_cfg.get("bold", True)
+        title_align = title_cfg.get("alignment", "center")
+
+        para = self.doc.add_paragraph()
+        run = para.add_run(title_text)
+        run.bold = title_bold
+        run.font.size = Pt(title_size)
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        self._set_run_font(run, title_font, True)
+
+        if title_align == "center":
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        elif title_align == "left":
+            para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        elif title_align == "right":
+            para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+        for _ in range(4):
+            self.doc.add_paragraph()
+
+        info_items = cover_cfg.get("info_items", [])
+        for item in info_items:
+            label = item.get("label", "")
+            value = item.get("value", "")
+            item_font = item.get("font", "宋体")
+            item_size = item.get("size", 14)
 
             para = self.doc.add_paragraph()
-            run = para.add_run(text)
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            if len(text) < 30 and not any(c in text for c in ['。', '，', '；']):
-                run.bold = True
-                run.font.size = Pt(16)
-                self._set_run_font(run, "黑体", True)
-                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            else:
-                run.font.size = Pt(12)
-                self._set_run_font(run, "宋体", True)
+            run = para.add_run(f"{label}：{value}")
+            run.font.size = Pt(item_size)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+            self._set_run_font(run, item_font, True)
+
+        self.doc.add_paragraph()
+
+        pb_elem = OxmlElement('w:p')
+        pb_r = OxmlElement('w:r')
+        pb_br = OxmlElement('w:br')
+        pb_br.set(qn('w:type'), 'page')
+        pb_r.append(pb_br)
+        pb_elem.append(pb_r)
+        self.doc.element.body.append(pb_elem)
 
     def _add_toc_page(self):
         toc_cfg = self.template_config.get("toc", {})
@@ -489,35 +525,18 @@ class ZeroFormatNormalizer:
     def _create_sections(self):
         doc_body = self.doc.element.body
 
-        cover_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "cover"]
-        if cover_paras:
-            cover_end_idx = len(cover_paras)
-            if cover_end_idx < len(self.doc.paragraphs):
-                cover_last = self.doc.paragraphs[cover_end_idx - 1]._element
-                ppr = cover_last.find(qn('w:pPr'))
-                if ppr is None:
-                    ppr = OxmlElement('w:pPr')
-                    cover_last.insert(0, ppr)
-                sect_pr = OxmlElement('w:sectPr')
-                self._set_section_properties(sect_pr, is_cover=True)
-                ppr.append(sect_pr)
+        all_paras = self.doc.paragraphs
+        if not all_paras:
+            return
 
-        toc_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "toc"]
-        if toc_paras:
-            toc_end_idx = len(cover_paras) + len(toc_paras) + 1
-            if toc_end_idx < len(self.doc.paragraphs):
-                toc_last = self.doc.paragraphs[toc_end_idx - 1]._element
-                ppr = toc_last.find(qn('w:pPr'))
-                if ppr is None:
-                    ppr = OxmlElement('w:pPr')
-                    toc_last.insert(0, ppr)
-                sect_pr = OxmlElement('w:sectPr')
-                self._set_section_properties(sect_pr, is_toc=True)
-                ppr.append(sect_pr)
-
-        final_sect_pr = OxmlElement('w:sectPr')
-        self._set_section_properties(final_sect_pr, is_final=True)
-        doc_body.append(final_sect_pr)
+        last_para = all_paras[-1]._element
+        ppr = last_para.find(qn('w:pPr'))
+        if ppr is None:
+            ppr = OxmlElement('w:pPr')
+            last_para.insert(0, ppr)
+        sect_pr = OxmlElement('w:sectPr')
+        self._set_section_properties(sect_pr, is_final=True)
+        ppr.append(sect_pr)
 
     def _set_section_properties(self, sect_pr, is_cover=False, is_toc=False, is_ref=False, is_final=False):
         pg_sz = OxmlElement('w:pgSz')
@@ -675,10 +694,8 @@ class ZeroFormatNormalizer:
     def _enable_auto_update_fields(self):
         settings_part = self.doc.settings.element
         update_fields = settings_part.find(qn('w:updateFields'))
-        if update_fields is None:
-            update_fields = OxmlElement('w:updateFields')
-            settings_part.append(update_fields)
-        update_fields.set(qn('w:val'), 'true')
+        if update_fields is not None:
+            settings_part.remove(update_fields)
 
     @staticmethod
     def _set_run_font(run, font_name, is_chinese=False):

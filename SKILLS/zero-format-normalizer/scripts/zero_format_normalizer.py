@@ -269,12 +269,51 @@ class ZeroFormatNormalizer:
         self._detect_structure()
 
         self._add_cover_page()
-        self._add_toc_page()
         self._add_body_content()
         self._add_references_section()
+        self._add_toc_page()
         self._create_sections()
         self._add_header_footer()
         self._enable_auto_update_fields()
+
+    def _insert_cover_logo(self, logo_cfg):
+        import base64
+        import io
+        
+        img_data = logo_cfg.get("image_data", "")
+        img_path = logo_cfg.get("image_path", "")
+        
+        img_stream = None
+        
+        if img_data and len(img_data) > 100:
+            try:
+                if img_data.startswith("data:"):
+                    img_data = img_data.split(",", 1)[1]
+                img_bytes = base64.b64decode(img_data)
+                img_stream = io.BytesIO(img_bytes)
+            except Exception as e:
+                print(f"[WARNING] Failed to decode logo base64: {e}")
+        
+        if not img_stream and img_path:
+            img_path_obj = Path(img_path)
+            if img_path_obj.exists():
+                try:
+                    img_stream = open(img_path_obj, 'rb')
+                except Exception as e:
+                    print(f"[WARNING] Failed to open logo file: {e}")
+        
+        if img_stream:
+            try:
+                logo_para = self.doc.add_paragraph()
+                logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                logo_run = logo_para.add_run()
+                logo_width = Cm(logo_cfg.get("width", 120) / 50)
+                logo_run.add_picture(img_stream, width=logo_width)
+            except Exception as e:
+                print(f"[WARNING] Failed to insert logo: {e}")
+            finally:
+                if hasattr(img_stream, 'close'):
+                    img_stream.close()
 
     def _add_cover_page(self):
         cover_cfg = self.template_config.get("cover", {})
@@ -282,22 +321,21 @@ class ZeroFormatNormalizer:
             return
 
         logo_cfg = cover_cfg.get("logo", {})
-        if logo_cfg.get("enabled", False) and logo_cfg.get("image_data"):
-            import base64
-            import io
-            try:
-                img_data = logo_cfg["image_data"]
-                if img_data.startswith("data:"):
-                    img_data = img_data.split(",", 1)[1]
-                img_bytes = base64.b64decode(img_data)
-                img_stream = io.BytesIO(img_bytes)
-                logo_para = self.doc.add_paragraph()
-                logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                logo_run = logo_para.add_run()
-                logo_width = Cm(logo_cfg.get("width", 120) / 50)
-                logo_run.add_picture(img_stream, width=logo_width)
-            except Exception as e:
-                print(f"[WARNING] Failed to add logo: {e}")
+        if logo_cfg.get("enabled", False):
+            self._insert_cover_logo(logo_cfg)
+
+        school_name = cover_cfg.get("school_name", "")
+        if school_name:
+            school_font = cover_cfg.get("school_font", "宋体")
+            school_size = cover_cfg.get("school_size", 18)
+            para = self.doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run(school_name)
+            run.bold = True
+            run.font.size = Pt(school_size)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+            self._set_run_font(run, school_font, True)
+            self.doc.add_paragraph()
 
         layout_cfg = cover_cfg.get("layout", {})
         vertical_align = layout_cfg.get("vertical_align", "center")
@@ -333,6 +371,8 @@ class ZeroFormatNormalizer:
         for item in info_items:
             label = item.get("label", "")
             value = item.get("value", "")
+            if not value:
+                continue
             item_font = item.get("font", "宋体")
             item_size = item.get("size", 14)
 
@@ -346,13 +386,17 @@ class ZeroFormatNormalizer:
 
         self.doc.add_paragraph()
 
-        pb_elem = OxmlElement('w:p')
-        pb_r = OxmlElement('w:r')
-        pb_br = OxmlElement('w:br')
-        pb_br.set(qn('w:type'), 'page')
-        pb_r.append(pb_br)
-        pb_elem.append(pb_r)
-        self.doc.element.body.append(pb_elem)
+        self._add_section_break(is_cover=True)
+
+    def _add_section_break(self, is_cover=False, is_toc=False, is_ref=False):
+        last_para = self.doc.paragraphs[-1]._element
+        ppr = last_para.find(qn('w:pPr'))
+        if ppr is None:
+            ppr = OxmlElement('w:pPr')
+            last_para.insert(0, ppr)
+        sect_pr = OxmlElement('w:sectPr')
+        self._set_section_properties(sect_pr, is_cover=is_cover, is_toc=is_toc, is_ref=is_ref)
+        ppr.append(sect_pr)
 
     def _add_toc_page(self):
         toc_cfg = self.template_config.get("toc", {})
@@ -364,35 +408,86 @@ class ZeroFormatNormalizer:
         title_size = toc_cfg.get("title_size", 16)
         max_level = toc_cfg.get("max_level", 3)
 
-        toc_title_para = self.doc.add_paragraph()
-        toc_title_run = toc_title_para.add_run(title)
-        toc_title_run.bold = True
-        toc_title_run.font.size = Pt(title_size)
-        toc_title_run.font.color.rgb = RGBColor(0, 0, 0)
-        self._set_run_font(toc_title_run, title_font, True)
-        toc_title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        toc_title_para.paragraph_format.space_after = Pt(20)
+        abstract_keywords = ["摘要", "摘 要", "abstract", "提要"]
+        insert_target = None
+        doc_paras = self.doc.paragraphs
 
-        toc_para = self.doc.add_paragraph()
+        for i, para in enumerate(doc_paras):
+            style_name = para.style.name if para.style else ""
+            text = (para.text or "").strip().lower()
+            if "heading" in style_name.lower():
+                for kw in abstract_keywords:
+                    if kw in text:
+                        insert_target = para._element
+                        break
+                if insert_target is not None:
+                    break
+
+        if insert_target is None:
+            for i, para in enumerate(doc_paras):
+                style_name = para.style.name if para.style else ""
+                if "heading" in style_name.lower():
+                    insert_target = para._element
+                    break
+
+        if insert_target is None:
+            doc_body = self.doc.element.body
+            insert_target = doc_body
+
+        title_elem = OxmlElement('w:p')
+        title_ppr = OxmlElement('w:pPr')
+        title_jc = OxmlElement('w:jc')
+        title_jc.set(qn('w:val'), 'center')
+        title_ppr.append(title_jc)
+        title_spacing = OxmlElement('w:spacing')
+        title_spacing.set(qn('w:before'), '240')
+        title_spacing.set(qn('w:after'), '400')
+        title_ppr.append(title_spacing)
+        title_elem.append(title_ppr)
+        title_r = OxmlElement('w:r')
+        title_rpr = OxmlElement('w:rPr')
+        title_b = OxmlElement('w:b')
+        title_rpr.append(title_b)
+        title_sz = OxmlElement('w:sz')
+        title_sz.set(qn('w:val'), str(title_size * 2))
+        title_rpr.append(title_sz)
+        title_rfonts = OxmlElement('w:rFonts')
+        title_rfonts.set(qn('w:ascii'), title_font)
+        title_rfonts.set(qn('w:hAnsi'), title_font)
+        title_rfonts.set(qn('w:eastAsia'), title_font)
+        title_rpr.insert(0, title_rfonts)
+        title_color = OxmlElement('w:color')
+        title_color.set(qn('w:val'), '000000')
+        title_rpr.append(title_color)
+        title_r.append(title_rpr)
+        title_t = OxmlElement('w:t')
+        title_t.set(qn('xml:space'), 'preserve')
+        title_t.text = title
+        title_r.append(title_t)
+        title_elem.append(title_r)
+
+        toc_field_elem = OxmlElement('w:p')
+        toc_ppr = OxmlElement('w:pPr')
+        toc_field_elem.append(toc_ppr)
 
         r_begin = OxmlElement('w:r')
         fld_begin = OxmlElement('w:fldChar')
         fld_begin.set(qn('w:fldCharType'), 'begin')
         r_begin.append(fld_begin)
-        toc_para._element.append(r_begin)
+        toc_field_elem.append(r_begin)
 
         r_instr = OxmlElement('w:r')
         instr = OxmlElement('w:instrText')
         instr.set(qn('xml:space'), 'preserve')
         instr.text = f' TOC \\o "1-{max_level}" \\h \\z \\u '
         r_instr.append(instr)
-        toc_para._element.append(r_instr)
+        toc_field_elem.append(r_instr)
 
         r_sep = OxmlElement('w:r')
         fld_sep = OxmlElement('w:fldChar')
         fld_sep.set(qn('w:fldCharType'), 'separate')
         r_sep.append(fld_sep)
-        toc_para._element.append(r_sep)
+        toc_field_elem.append(r_sep)
 
         r_ph = OxmlElement('w:r')
         rph_rpr = OxmlElement('w:rPr')
@@ -404,19 +499,30 @@ class ZeroFormatNormalizer:
         t_ph.set(qn('xml:space'), 'preserve')
         t_ph.text = '（目录将在 Word 中自动更新）'
         r_ph.append(t_ph)
-        toc_para._element.append(r_ph)
+        toc_field_elem.append(r_ph)
 
         r_end = OxmlElement('w:r')
         fld_end = OxmlElement('w:fldChar')
         fld_end.set(qn('w:fldCharType'), 'end')
         r_end.append(fld_end)
-        toc_para._element.append(r_end)
+        toc_field_elem.append(r_end)
 
-        pb_para = self.doc.add_paragraph()
-        pb_run = pb_para.add_run()
-        pb_br = OxmlElement('w:br')
-        pb_br.set(qn('w:type'), 'page')
-        pb_run._element.append(pb_br)
+        sect_break_elem = OxmlElement('w:p')
+        sect_ppr = OxmlElement('w:pPr')
+        sect_pr = OxmlElement('w:sectPr')
+        self._set_section_properties(sect_pr, is_toc=True)
+        sect_ppr.append(sect_pr)
+        sect_break_elem.append(sect_ppr)
+
+        if insert_target is self.doc.element.body:
+            doc_body = self.doc.element.body
+            doc_body.insert(0, sect_break_elem)
+            doc_body.insert(0, toc_field_elem)
+            doc_body.insert(0, title_elem)
+        else:
+            insert_target.addprevious(title_elem)
+            insert_target.addprevious(toc_field_elem)
+            insert_target.addprevious(sect_break_elem)
 
     def _add_body_content(self):
         body_paras = [p for p in self.ast["paragraphs"] if p.get("section") == "body"]
@@ -514,6 +620,8 @@ class ZeroFormatNormalizer:
 
         if ref_start < 0:
             return
+
+        self._add_section_break(is_ref=True)
 
         para = self.doc.add_paragraph()
         run = para.add_run("参考文献")

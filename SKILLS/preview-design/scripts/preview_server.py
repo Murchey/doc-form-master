@@ -361,6 +361,13 @@ body {{ font-family: "{chinese_font}", sans-serif; background: #f0f2f5; color: #
                 </div>
 
                 <div class="config-group">
+                    <h3>学校信息</h3>
+                    <div class="config-row"><label>学校名称</label><input type="text" id="cfg-cover-school-name" value="{cover_cfg.get('school_name', '')}" placeholder="如：XX大学"></div>
+                    <div class="config-row"><label>字体</label><input type="text" id="cfg-cover-school-font" value="{cover_cfg.get('school_font', '宋体')}"></div>
+                    <div class="config-row"><label>字号</label><input type="number" id="cfg-cover-school-size" value="{cover_cfg.get('school_size', 18)}" min="14" max="28"></div>
+                </div>
+
+                <div class="config-group">
                     <h3>个人信息</h3>
                     <div id="cover-info-items">
                         {"".join(f'<div class="config-row cover-info-row"><label>{item.get("label", "")}</label><input type="text" class="cover-info-value" data-label="{item.get("label", "")}" value="{item.get("value", "")}" placeholder="请输入{item.get("label", "")}"></div>' for item in cover_info_items)}
@@ -546,6 +553,9 @@ function getCoverConfig() {{
 
     return {{
         enabled: document.getElementById("redesign-cover") ? document.getElementById("redesign-cover").checked : false,
+        school_name: document.getElementById("cfg-cover-school-name") ? document.getElementById("cfg-cover-school-name").value : "",
+        school_font: document.getElementById("cfg-cover-school-font") ? document.getElementById("cfg-cover-school-font").value : "宋体",
+        school_size: document.getElementById("cfg-cover-school-size") ? parseInt(document.getElementById("cfg-cover-school-size").value) : 18,
         title: {{
             text: document.getElementById("cfg-cover-title-text") ? document.getElementById("cfg-cover-title-text").value : "课程作业",
             font: document.getElementById("cfg-cover-title-font") ? document.getElementById("cfg-cover-title-font").value : "黑体",

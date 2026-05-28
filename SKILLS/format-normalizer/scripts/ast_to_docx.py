@@ -527,20 +527,35 @@ class ASTToDocxConverter:
         title_size = toc_cfg.get("title_size", 16)
         max_level = toc_cfg.get("max_level", 3)
 
-        body_start_idx = 0
         ast_paras = self.ast.get("paragraphs", [])
-        for i, p in enumerate(ast_paras):
-            if p.get("section") == "body":
-                body_start_idx = i
-                break
-
-        doc_body = self.doc.element.body
         doc_paras = self.doc.paragraphs
 
-        if body_start_idx >= len(doc_paras):
-            return
+        abstract_keywords = ["摘要", "摘 要", "abstract", "提要"]
+        insert_before = None
 
-        insert_before = doc_paras[body_start_idx]._element
+        for i, p in enumerate(ast_paras):
+            style = p.get("style", "") or ""
+            text = (p.get("text") or "").strip().lower()
+            if "heading" in style.lower():
+                for kw in abstract_keywords:
+                    if kw in text:
+                        if i < len(doc_paras):
+                            insert_before = doc_paras[i]._element
+                        break
+            if insert_before:
+                break
+
+        if not insert_before:
+            body_start_idx = 0
+            for i, p in enumerate(ast_paras):
+                if p.get("section") == "body":
+                    body_start_idx = i
+                    break
+            if body_start_idx < len(doc_paras):
+                insert_before = doc_paras[body_start_idx]._element
+
+        if not insert_before:
+            return
 
         title_elem = OxmlElement('w:p')
         title_ppr = OxmlElement('w:pPr')
@@ -625,16 +640,8 @@ class ASTToDocxConverter:
         r_end.append(fld_end)
         toc_field_elem.append(r_end)
 
-        pb_elem = OxmlElement('w:p')
-        pb_r = OxmlElement('w:r')
-        pb_br = OxmlElement('w:br')
-        pb_br.set(qn('w:type'), 'page')
-        pb_r.append(pb_br)
-        pb_elem.append(pb_r)
-
         insert_before.addprevious(title_elem)
         insert_before.addprevious(toc_field_elem)
-        insert_before.addprevious(pb_elem)
 
     def _enable_auto_update_fields(self):
         settings_part = self.doc.settings.element

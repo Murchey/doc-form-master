@@ -388,9 +388,8 @@ class DocxParser:
 
 
 if __name__ == "__main__":
+    import sys
 
-    parser = DocxParser(
-        "workspace/input/《智能体平台应用》课程作业.docx"
-    )
-
+    input_path = sys.argv[1] if len(sys.argv) > 1 else "workspace/input/input.docx"
+    parser = DocxParser(input_path)
     parser.run()

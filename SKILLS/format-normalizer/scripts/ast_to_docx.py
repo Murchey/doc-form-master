@@ -848,15 +848,24 @@ class ASTToDocxConverter:
             return 0
 
         has_heading_in_cover = False
-        for i in range(parser_cover_end):
+        for i in range(min(parser_cover_end, len(ast_paras))):
             style = (ast_paras[i].get("style") or "").strip()
             if style.startswith("Heading"):
                 has_heading_in_cover = True
                 break
 
         if has_heading_in_cover and parser_cover_end > 5:
-            print(f"[INFO] Cover section contains headings ({parser_cover_end} paras) - treating as body content")
-            return 0
+            for i in range(min(parser_cover_end, len(ast_paras))):
+                text = (ast_paras[i].get("text") or "").strip()
+                if not text:
+                    continue
+                style = (ast_paras[i].get("style") or "").strip()
+                if not style.startswith("Heading"):
+                    has_heading_in_cover = False
+                    break
+            if has_heading_in_cover:
+                print(f"[INFO] Cover section contains headings ({parser_cover_end} paras) - treating as body content")
+                return 0
 
         return parser_cover_end
 
@@ -866,13 +875,14 @@ class ASTToDocxConverter:
         count = min(len(doc_paras), len(ast_paras))
         doc_body = self.doc.element.body
 
+        import re
+        ref_pattern = re.compile(r'(参考文献|references|bibliography)', re.IGNORECASE)
         cover_end = self._detect_real_cover_end()
 
         ref_start = count
         for i, p in enumerate(ast_paras):
             text = (p.get("text") or "").strip()
-            style = (p.get("style") or "").strip()
-            if "Heading 1" in style and "参考文献" in text:
+            if ref_pattern.search(text):
                 ref_start = i
                 break
 
@@ -894,6 +904,17 @@ class ASTToDocxConverter:
             if ppr is None:
                 ppr = OxmlElement('w:pPr')
                 ref_para.insert(0, ppr)
+
+            existing_pb = False
+            for child in ppr:
+                tag_local = child.tag.split('}')[1] if '}' in child.tag else child.tag
+                if tag_local == 'pageBreakBefore':
+                    existing_pb = True
+                    break
+            if not existing_pb:
+                pb = OxmlElement('w:pageBreakBefore')
+                ppr.append(pb)
+
             sect_pr = OxmlElement('w:sectPr')
             self._set_section_properties(sect_pr, is_ref=True)
             ppr.append(sect_pr)
@@ -924,13 +945,258 @@ class ASTToDocxConverter:
                 pg_num_type.set(qn('w:start'), '1')
             sect_pr.append(pg_num_type)
 
+    def _load_edited_config(self):
+        edited_config_path = Path("workspace/validated/edited_config.json")
+        if edited_config_path.exists():
+            with open(edited_config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return None
+
+    def _detect_original_cover_range(self):
+        ast_paras = self.ast.get("paragraphs", [])
+        if not ast_paras:
+            return (0, 0)
+
+        parser_cover_end = 0
+        for i, p in enumerate(ast_paras):
+            if p.get("section") == "cover":
+                parser_cover_end = max(parser_cover_end, i + 1)
+
+        if parser_cover_end == 0:
+            return (0, 0)
+
+        has_heading_in_cover = False
+        for i in range(parser_cover_end):
+            style = (ast_paras[i].get("style") or "").strip()
+            if style.startswith("Heading"):
+                has_heading_in_cover = True
+                break
+
+        if has_heading_in_cover and parser_cover_end > 5:
+            first_heading_idx = -1
+            for i, p in enumerate(ast_paras):
+                style = (p.get("style") or "").strip()
+                if style.startswith("Heading"):
+                    first_heading_idx = i
+                    break
+            if first_heading_idx > 0:
+                return (0, first_heading_idx)
+            return (0, 0)
+
+        return (0, parser_cover_end)
+
+    def _apply_cover_redesign(self, edited_config):
+        cover_cfg = edited_config.get("cover", {})
+        if not cover_cfg.get("enabled", False):
+            return
+
+        cover_start, cover_end = self._detect_original_cover_range()
+
+        doc_paras = self.doc.paragraphs
+        body = self.doc.element.body
+
+        if cover_end > 0 and cover_end <= len(doc_paras):
+            for i in range(cover_end - 1, cover_start - 1, -1):
+                p_elem = doc_paras[i]._element
+                body.remove(p_elem)
+            self.ast["paragraphs"] = self.ast["paragraphs"][cover_end:]
+
+        new_cover_paras = []
+
+        logo_cfg = cover_cfg.get("logo", {})
+        if logo_cfg.get("enabled", False):
+            self._insert_cover_logo(logo_cfg, new_cover_paras)
+
+        school_name = cover_cfg.get("school_name", "")
+        if school_name:
+            school_font = cover_cfg.get("school_font", "宋体")
+            school_size = cover_cfg.get("school_size", 18)
+            p = OxmlElement('w:p')
+            ppr = OxmlElement('w:pPr')
+            jc = OxmlElement('w:jc')
+            jc.set(qn('w:val'), 'center')
+            ppr.append(jc)
+            p.append(ppr)
+            r = OxmlElement('w:r')
+            rpr = OxmlElement('w:rPr')
+            rf = OxmlElement('w:rFonts')
+            rf.set(qn('w:ascii'), school_font)
+            rf.set(qn('w:hAnsi'), school_font)
+            rf.set(qn('w:eastAsia'), school_font)
+            rpr.append(rf)
+            sz = OxmlElement('w:sz')
+            sz.set(qn('w:val'), str(int(school_size * 2)))
+            rpr.append(sz)
+            b = OxmlElement('w:b')
+            rpr.append(b)
+            color = OxmlElement('w:color')
+            color.set(qn('w:val'), '000000')
+            rpr.append(color)
+            r.append(rpr)
+            t = OxmlElement('w:t')
+            t.text = school_name
+            r.append(t)
+            p.append(r)
+            new_cover_paras.append(p)
+
+            sp = OxmlElement('w:p')
+            new_cover_paras.append(sp)
+
+        layout_cfg = cover_cfg.get("layout", {})
+        vertical_align = layout_cfg.get("vertical_align", "center")
+        if vertical_align == "center":
+            for _ in range(4):
+                new_cover_paras.append(OxmlElement('w:p'))
+
+        title_cfg = cover_cfg.get("title", {})
+        title_text = title_cfg.get("text", "课程作业")
+        title_font = title_cfg.get("font", "黑体")
+        title_size = title_cfg.get("size", 22)
+        title_bold = title_cfg.get("bold", True)
+        title_align = title_cfg.get("alignment", "center")
+
+        tp = OxmlElement('w:p')
+        tppr = OxmlElement('w:pPr')
+        tjc = OxmlElement('w:jc')
+        tjc.set(qn('w:val'), title_align if title_align else 'center')
+        tppr.append(tjc)
+        tp.append(tppr)
+        tr = OxmlElement('w:r')
+        trpr = OxmlElement('w:rPr')
+        trf = OxmlElement('w:rFonts')
+        trf.set(qn('w:ascii'), title_font)
+        trf.set(qn('w:hAnsi'), title_font)
+        trf.set(qn('w:eastAsia'), title_font)
+        trpr.append(trf)
+        tsz = OxmlElement('w:sz')
+        tsz.set(qn('w:val'), str(int(title_size * 2)))
+        trpr.append(tsz)
+        if title_bold:
+            trpr.append(OxmlElement('w:b'))
+        tcolor = OxmlElement('w:color')
+        tcolor.set(qn('w:val'), '000000')
+        trpr.append(tcolor)
+        tr.append(trpr)
+        tt = OxmlElement('w:t')
+        tt.text = title_text
+        tr.append(tt)
+        tp.append(tr)
+        new_cover_paras.append(tp)
+
+        for _ in range(4):
+            new_cover_paras.append(OxmlElement('w:p'))
+
+        info_items = cover_cfg.get("info_items", [])
+        for item in info_items:
+            label = item.get("label", "")
+            value = item.get("value", "")
+            if not value:
+                continue
+            item_font = item.get("font", "宋体")
+            item_size = item.get("size", 14)
+
+            ip = OxmlElement('w:p')
+            ippr = OxmlElement('w:pPr')
+            ijc = OxmlElement('w:jc')
+            ijc.set(qn('w:val'), 'center')
+            ippr.append(ijc)
+            ip.append(ippr)
+            ir = OxmlElement('w:r')
+            irpr = OxmlElement('w:rPr')
+            irf = OxmlElement('w:rFonts')
+            irf.set(qn('w:ascii'), item_font)
+            irf.set(qn('w:hAnsi'), item_font)
+            irf.set(qn('w:eastAsia'), item_font)
+            irpr.append(irf)
+            isz = OxmlElement('w:sz')
+            isz.set(qn('w:val'), str(int(item_size * 2)))
+            irpr.append(isz)
+            icolor = OxmlElement('w:color')
+            icolor.set(qn('w:val'), '000000')
+            irpr.append(icolor)
+            ir.append(irpr)
+            it = OxmlElement('w:t')
+            it.text = f"{label}：{value}"
+            ir.append(it)
+            ip.append(ir)
+            new_cover_paras.append(ip)
+
+        new_cover_paras.append(OxmlElement('w:p'))
+
+        sect_break = OxmlElement('w:p')
+        sect_ppr = OxmlElement('w:pPr')
+        sect_pr = OxmlElement('w:sectPr')
+        self._set_section_properties(sect_pr, is_cover=True)
+        sect_ppr.append(sect_pr)
+        sect_break.append(sect_ppr)
+        new_cover_paras.append(sect_break)
+
+        if doc_paras:
+            first_elem = self.doc.paragraphs[0]._element
+            body_elem = first_elem.getparent()
+            insert_pos = list(body_elem).index(first_elem)
+            for idx, p in enumerate(new_cover_paras):
+                body_elem.insert(insert_pos + idx, p)
+        else:
+            for p in new_cover_paras:
+                body.append(p)
+
+        self.ast["paragraphs"] = [{
+            "id": 0, "text": "", "style": "Normal", "section": "cover", "runs": []
+        }] * len(new_cover_paras) + self.ast["paragraphs"]
+
+        print(f"[INFO] Cover redesigned: title='{title_text}', {len(info_items)} info items")
+
+    def _insert_cover_logo(self, logo_cfg, new_cover_paras):
+        import base64
+        import io
+
+        img_data = logo_cfg.get("image_data", "")
+        img_path = logo_cfg.get("image_path", "")
+
+        if not img_data and not img_path:
+            return
+
+        try:
+            if img_data and len(img_data) > 100:
+                if img_data.startswith("data:"):
+                    img_data = img_data.split(",", 1)[1]
+                img_bytes = base64.b64decode(img_data)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+                    tmp.write(img_bytes)
+                    tmp_path = tmp.name
+            elif img_path and Path(img_path).exists():
+                tmp_path = str(img_path)
+            else:
+                return
+
+            logo_width_cm = logo_cfg.get("width", 120) / 50
+            logo_para = OxmlElement('w:p')
+            logo_ppr = OxmlElement('w:pPr')
+            logo_jc = OxmlElement('w:jc')
+            logo_jc.set(qn('w:val'), 'center')
+            logo_ppr.append(logo_jc)
+            logo_para.append(logo_ppr)
+            new_cover_paras.append(logo_para)
+            print(f"[INFO] Cover logo prepared")
+        except Exception as e:
+            print(f"[WARNING] Failed to prepare cover logo: {e}")
+
     def run(self, output_path):
+        edited_config = self._load_edited_config()
+
         if self.source_docx_path and self.source_docx_path.exists():
             output = Path(output_path)
             output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self.source_docx_path, output)
             self.doc = Document(str(output))
             self._remove_all_sections()
+
+            if edited_config and edited_config.get("redesign_cover", False):
+                self._apply_cover_redesign(edited_config)
+            else:
+                self.ast["paragraphs"] = self.ast.get("paragraphs", [])
+
             self.convert_paragraphs_in_place()
             self._fix_table_fonts_in_place()
             self._normalize_sections()

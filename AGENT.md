@@ -47,6 +47,13 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 ## Step 3: 解析文档
 读取 `SKILLS/docx-parser/SKILL.md` + `scripts/parser.py`，生成 `document_ast.json`
 
+**智能标题检测**：解析器不仅依赖 Word 样式（Heading 1/2/3），还使用模式匹配检测标题：
+- H1：`第X章/节/部分`、`数字 + 空格 + 文本`（如 "1  需求分析"）
+- H2：中文数字（一、二、三）、关键词（引言/摘要/结论/参考文献）
+- H3：`数字.数字`（如 1.1 xxx）
+
+**参考文献检测**：使用模式匹配（`参考文献|references|bibliography`），不依赖 Heading 样式。
+
 ## Step 3b: 路径判断
 - **已格式化**：有 Heading 样式、字体配置 → Step 4
 - **零格式**：全部 Normal 样式、无字体 → Step 3c
@@ -119,7 +126,10 @@ result = run_preview(
 ## Step 9a/9b: 格式化
 读取 `workspace/validated/edited_config.json` 中的用户确认配置（如有），与 `template_config.json` 合并后：
 - **已格式化**：`ast_to_docx.py` 处理
+  - 如 `edited_config.json` 中 `redesign_cover=true`：自动删除原始封面，按配置重建封面（学校名称、标题、信息项）
+  - 自动检测参考文献并添加分页符+分节符（确保参考文献在新页开始）
 - **零格式**：`zero_format_normalizer.py` 生成新文档
+  - 参考文献自动分页（分页符+分节符）
 
 ## Step 10-12: 后续处理
 - image-layout：优化图片（可选）

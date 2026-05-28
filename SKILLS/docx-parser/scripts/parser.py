@@ -281,9 +281,46 @@ class DocxParser:
         )
 
     def _identify_sections(self):
+        import re
+
         paras = self.ast.get("paragraphs", [])
         if not paras:
             return
+
+        CHINESE_NUMS = "一二三四五六七八九十百"
+        H1_PATTERN = re.compile(r'^第[{}0-9一二三四五六七八九十]+[章节部篇]'.format(CHINESE_NUMS))
+        H1_PATTERN_NUM = re.compile(r'^\d+\s+\S')
+        H2_PATTERN_CN = re.compile(r'^[一二三四五六七八九十]+[、．.]')
+        H2_PATTERN_KW = re.compile(r'^(引言|摘要|结论|参考文献|致谢|附录|abstract|references|introduction|conclusion|summary)', re.IGNORECASE)
+        H3_PATTERN = re.compile(r'^\d+\.\d+[\.\s]')
+
+        def detect_heading_level(p):
+            style = (p.get("style") or "").lower()
+            text = (p.get("text") or "").strip()
+            if not text:
+                return None, None
+            if "heading 1" in style:
+                return "Heading 1", text
+            if "heading 2" in style:
+                return "Heading 2", text
+            if "heading 3" in style:
+                return "Heading 3", text
+
+            if len(text) > 100:
+                return None, None
+
+            if H1_PATTERN.match(text):
+                return "Heading 1", text
+            if H1_PATTERN_NUM.match(text) and len(text) < 50:
+                return "Heading 1", text
+            if H2_PATTERN_CN.match(text):
+                return "Heading 2", text
+            if H2_PATTERN_KW.match(text.lower()):
+                return "Heading 2", text
+            if H3_PATTERN.match(text):
+                return "Heading 3", text
+
+            return None, None
 
         cover_end = 0
         toc_start = -1
@@ -293,20 +330,25 @@ class DocxParser:
 
         for i, p in enumerate(paras):
             text = (p.get("text") or "").strip()
-            style = (p.get("style") or "").lower()
             text_lower = text.lower()
+            level, _ = detect_heading_level(p)
 
-            if "heading 1" in style:
+            if level == "Heading 1":
                 if toc_start >= 0 and toc_end < 0:
                     toc_end = i
                 if cover_end == 0:
                     cover_end = i
                 break
 
+            if level:
+                if cover_end == 0:
+                    cover_end = i
+                    break
+
             if any(kw in text_lower for kw in toc_keywords):
                 toc_start = i
 
-            if "toc" in style or "目录" in style:
+            if "toc" in (p.get("style") or "").lower() or "目录" in (p.get("style") or "").lower():
                 if toc_start < 0:
                     toc_start = i
                 toc_end = i + 1
@@ -315,16 +357,16 @@ class DocxParser:
             for i, p in enumerate(paras):
                 text = (p.get("text") or "").strip()
                 if text and len(text) > 5:
-                    style = (p.get("style") or "").lower()
-                    if "heading" in style:
+                    level, _ = detect_heading_level(p)
+                    if level:
                         cover_end = i
                         break
 
         if toc_start >= 0 and toc_end < 0:
             for i in range(toc_start + 1, len(paras)):
-                style = (paras[i].get("style") or "").lower()
+                level, _ = detect_heading_level(paras[i])
                 text = (paras[i].get("text") or "").strip()
-                if "heading 1" in style or (text and "heading" not in style and len(text) > 20):
+                if level == "Heading 1" or (text and not level and len(text) > 20):
                     toc_end = i
                     break
             if toc_end < 0:

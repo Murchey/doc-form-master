@@ -621,9 +621,21 @@ class ZeroFormatNormalizer:
         if ref_start < 0:
             return
 
-        self._add_section_break(is_ref=True)
+        if self.doc.paragraphs:
+            last_para = self.doc.paragraphs[-1]._element
+            ppr = last_para.find(qn('w:pPr'))
+            if ppr is None:
+                ppr = OxmlElement('w:pPr')
+                last_para.insert(0, ppr)
+            sect_pr = OxmlElement('w:sectPr')
+            self._set_section_properties(sect_pr, is_ref=True)
+            ppr.append(sect_pr)
 
         para = self.doc.add_paragraph()
+        ppr = para._element.get_or_add_pPr()
+        pb = OxmlElement('w:pageBreakBefore')
+        ppr.append(pb)
+
         run = para.add_run("参考文献")
         run.bold = True
         run.font.size = Pt(14)

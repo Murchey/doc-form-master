@@ -37,7 +37,10 @@ class FormatNormalizer:
     @staticmethod
     def _is_protected(paragraph):
         section = paragraph.get("section", "")
-        return section in ("cover", "toc")
+        style = (paragraph.get("style") or "").strip()
+        if section == "cover" and not style.startswith("Heading"):
+            return False
+        return section == "toc"
 
     def normalize_paragraphs(self):
 

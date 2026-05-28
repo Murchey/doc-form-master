@@ -39,6 +39,8 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 
 # 执行流程
 
+**⚠️ 关键规则：所有标记为 🔒 的步骤为强制交互检查点，必须等待用户确认后才能继续下一步。禁止跳过任何交互检查点！**
+
 ## Step 1-2: 初始化
 创建工作区目录（input/output/parsed/normalized/validated/reports/logs/temp/checkpoints），复制用户文件到 `workspace/input/`
 
@@ -53,7 +55,7 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 跳过 Step 4-9a，执行：
 1. 加载模板 → `template_config`
 2. 验证字体 → `font_mapping`
-3. 预览确认 → `edited_config`
+3. 🔒 **预览确认** → `edited_config`（必须启动 preview-design Web 服务器让用户确认）
 4. 生成格式化文档 → `formatted.docx`
 5. 跳转 Step 10
 
@@ -61,24 +63,67 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 - xml-safety：验证 XML 安全性
 - formula-protection：保护数学公式
 
+## 🔒 Step 5b: 用户选项确认（强制交互检查点）
+
+**此步骤必须向用户询问以下选项，使用 AskUserQuestion 工具：**
+
+1. **模板选择**：展示可用模板列表（如 chinese_academic.yaml / english_academic.yaml），让用户选择
+2. **是否需要公式保护**：如果检测到公式，询问用户是否启用公式保护
+3. **是否需要翻译**：询问用户是否需要翻译文档内容
+
+示例问题格式：
+```
+问题1: 请选择文档模板？
+选项: [中文论文模板(推荐)] [英文论文模板] [自定义模板]
+问题2: 是否需要公式保护？
+选项: [是(推荐)] [否]
+问题3: 是否需要翻译文档？
+选项: [不需要] [翻译为英文] [翻译为中文]
+```
+
+**禁止**：自动选择默认值而不询问用户
+
 ## Step 6-7: 模板与字体
-- template-engine：加载模板配置
+- template-engine：根据用户选择的模板加载配置
 - font-manager：验证字体、生成 fallback
 
-## Step 8: 预览确认
-读取 `SKILLS/preview-design/SKILL.md` + `scripts/preview_server.py`，展示：
+## 🔒 Step 8: 预览确认（强制交互检查点）
+
+**此步骤必须启动 preview-design Web 服务器，让用户在浏览器中确认设计。**
+
+执行方式：
+```python
+import sys
+sys.path.insert(0, 'SKILLS/preview-design/scripts')
+from preview_server import run_preview
+
+result = run_preview(
+    'workspace/parsed/document_ast.json',
+    'workspace/validated/template_config.json',
+    'workspace/input/input.docx'
+)
+# 服务器会自动打开浏览器，等待用户在浏览器中点击"确认并继续"
+# 返回结果包含用户编辑后的配置
+```
+
+预览服务器展示内容：
 - 封面页（学校名称、Logo、标题、个人信息）
 - 目录页（TOC 域代码）
 - 页眉页脚
 - 正文样式
 
+**将用户确认的配置保存到 `workspace/validated/edited_config.json`**
+
+**禁止**：跳过 Web 预览，仅用文字摘要代替
+
 ## Step 9a/9b: 格式化
+读取 `workspace/validated/edited_config.json` 中的用户确认配置（如有），与 `template_config.json` 合并后：
 - **已格式化**：`ast_to_docx.py` 处理
 - **零格式**：`zero_format_normalizer.py` 生成新文档
 
 ## Step 10-12: 后续处理
 - image-layout：优化图片（可选）
-- translation-engine：翻译（可选）
+- translation-engine：翻译（根据用户选择）
 - pdf-export：导出 PDF（可选）
 
 ## Step 13: 生成报告

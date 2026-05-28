@@ -15,6 +15,20 @@ tools: [python, flask]
 
 # 调用方式
 
+## 命令行（推荐，自动打开浏览器等待用户确认）
+
+```bash
+python SKILLS/preview-design/scripts/preview_server.py workspace/parsed/document_ast.json workspace/validated/template_config.json workspace/input/input.docx
+```
+
+**服务器会**：
+1. 启动本地 HTTP 服务（端口 8765-8780）
+2. 自动打开浏览器显示预览页面
+3. 等待用户在浏览器中编辑配置并点击"确认并继续"
+4. 将用户确认的配置保存到 `workspace/validated/edited_config.json`
+
+## Python API
+
 ```python
 import sys
 sys.path.insert(0, 'SKILLS/preview-design/scripts')
@@ -25,7 +39,8 @@ result = run_preview(
     'workspace/validated/template_config.json',
     'workspace/input/input.docx'
 )
-# 输出: JSON 格式的用户确认配置
+# result 包含: user_confirmed, cover_preserved, toc_preserved, edited_config
+# edited_config.json 会自动保存到 workspace/validated/
 ```
 
 **参数**：
@@ -35,10 +50,10 @@ result = run_preview(
   - `source_docx_path` - 源 DOCX 文件路径（可选）
 - 返回：用户确认的配置 JSON
 
-**命令行**：
-```bash
-python SKILLS/preview-design/scripts/preview_server.py <ast.json> <template.json> [source.docx]
-```
+**重要**：此命令是阻塞式的，会一直等待用户在浏览器中操作。必须使用 `blocking=true` 执行。
+
+**输出文件**：
+- `workspace/validated/edited_config.json` - 用户确认/编辑后的配置
 
 ---
 

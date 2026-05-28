@@ -164,7 +164,11 @@ class ASTToDocxConverter:
                 p_elem.remove(child)
 
     def _is_protected(self, para_data):
-        return para_data.get("section", "") == "cover"
+        section = para_data.get("section", "")
+        style = (para_data.get("style") or "").strip()
+        if section == "cover" and not style.startswith("Heading"):
+            return False
+        return section == "toc"
 
     @staticmethod
     def _normalize_alignment(alignment_str):
@@ -527,34 +531,16 @@ class ASTToDocxConverter:
         title_size = toc_cfg.get("title_size", 16)
         max_level = toc_cfg.get("max_level", 3)
 
-        ast_paras = self.ast.get("paragraphs", [])
         doc_paras = self.doc.paragraphs
+        doc_body = self.doc.element.body
 
-        abstract_keywords = ["摘要", "摘 要", "abstract", "提要"]
-        insert_before = None
-
-        for i, p in enumerate(ast_paras):
-            style = p.get("style", "") or ""
-            text = (p.get("text") or "").strip().lower()
-            if "heading" in style.lower():
-                for kw in abstract_keywords:
-                    if kw in text:
-                        if i < len(doc_paras):
-                            insert_before = doc_paras[i]._element
-                        break
-            if insert_before:
-                break
-
-        if not insert_before:
-            body_start_idx = 0
-            for i, p in enumerate(ast_paras):
-                if p.get("section") == "body":
-                    body_start_idx = i
-                    break
-            if body_start_idx < len(doc_paras):
-                insert_before = doc_paras[body_start_idx]._element
-
-        if not insert_before:
+        cover_end = self._detect_real_cover_end()
+        if cover_end > 0 and cover_end < len(doc_paras):
+            insert_before = doc_paras[cover_end]._element
+        elif len(doc_paras) > 0:
+            insert_before = doc_paras[0]._element
+        else:
+            print("[WARNING] TOC generation: no paragraphs found, skipping")
             return
 
         title_elem = OxmlElement('w:p')
@@ -623,12 +609,12 @@ class ASTToDocxConverter:
         rph_color.set(qn('w:val'), '808080')
         rph_rpr.append(rph_color)
         rph_sz = OxmlElement('w:sz')
-        rph_sz.set(qn('w:val'), '18')
+        rph_sz.set(qn('w:val'), '21')
         rph_rpr.append(rph_sz)
         r_ph.append(rph_rpr)
         t_ph = OxmlElement('w:t')
         t_ph.set(qn('xml:space'), 'preserve')
-        t_ph.text = '（目录将在 Word 中自动更新）'
+        t_ph.text = '请在 Word 中按 Ctrl+A 然后按 F9 更新目录'
         r_ph.append(t_ph)
         toc_field_elem.append(r_ph)
 
@@ -640,8 +626,30 @@ class ASTToDocxConverter:
         r_end.append(fld_end)
         toc_field_elem.append(r_end)
 
+        toc_section_break = OxmlElement('w:p')
+        toc_sb_ppr = OxmlElement('w:pPr')
+        toc_sb_sect = OxmlElement('w:sectPr')
+        pg_sz = OxmlElement('w:pgSz')
+        pg_sz.set(qn('w:w'), '11906')
+        pg_sz.set(qn('w:h'), '16838')
+        toc_sb_sect.append(pg_sz)
+        pg_mar = OxmlElement('w:pgMar')
+        pg_mar.set(qn('w:top'), '1440')
+        pg_mar.set(qn('w:right'), '1800')
+        pg_mar.set(qn('w:bottom'), '1440')
+        pg_mar.set(qn('w:left'), '1800')
+        pg_mar.set(qn('w:header'), '851')
+        pg_mar.set(qn('w:footer'), '992')
+        pg_mar.set(qn('w:gutter'), '0')
+        toc_sb_sect.append(pg_mar)
+        toc_sb_ppr.append(toc_sb_sect)
+        toc_section_break.append(toc_sb_ppr)
+
         insert_before.addprevious(title_elem)
         insert_before.addprevious(toc_field_elem)
+        insert_before.addprevious(toc_section_break)
+
+        print(f"[INFO] TOC page generated (max_level={max_level})")
 
     def _enable_auto_update_fields(self):
         settings_part = self.doc.settings.element
@@ -649,40 +657,26 @@ class ASTToDocxConverter:
         if update_fields is None:
             update_fields = OxmlElement('w:updateFields')
             settings_part.append(update_fields)
-        update_fields.set(qn('w:val'), 'false')
+        update_fields.set(qn('w:val'), 'true')
 
     def _apply_header_footer(self):
         header_cfg = self.template_config.get("header", {})
         footer_cfg = self.template_config.get("footer", {})
+        toc_cfg = self.template_config.get("toc", {})
+
+        has_cover = self._detect_real_cover_end() > 0
+        has_toc = toc_cfg.get("enabled", False)
+        pre_body_count = (1 if has_cover else 0) + (1 if has_toc else 0)
 
         sections = self.doc.sections
         if len(sections) < 1:
             return
 
         for i, section in enumerate(sections):
-            if i == 0:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
-                if header_cfg.get("enabled", False):
-                    header = section.header
-                    if header.paragraphs:
-                        hp = header.paragraphs[0]
-                        hp.clear()
-                    else:
-                        hp = header.add_paragraph()
-                    hr = hp.add_run("")
-                    hr.font.size = Pt(header_cfg.get("size", 9))
-                if footer_cfg.get("enabled", False):
-                    footer = section.footer
-                    if footer.paragraphs:
-                        fp = footer.paragraphs[0]
-                        fp.clear()
-                    else:
-                        fp = footer.add_paragraph()
-                    fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            elif i == 1:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
+            section.header.is_linked_to_previous = False
+            section.footer.is_linked_to_previous = False
+
+            if i < pre_body_count:
                 if header_cfg.get("enabled", False):
                     header = section.header
                     if header.paragraphs:
@@ -701,8 +695,6 @@ class ASTToDocxConverter:
                         fp = footer.add_paragraph()
                     fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
             else:
-                section.header.is_linked_to_previous = False
-                section.footer.is_linked_to_previous = False
 
                 if header_cfg.get("enabled", False):
                     header = section.header
@@ -842,36 +834,51 @@ class ASTToDocxConverter:
                 if sect_pr is not None:
                     ppr.remove(sect_pr)
 
+    def _detect_real_cover_end(self):
+        ast_paras = self.ast.get("paragraphs", [])
+        if not ast_paras:
+            return 0
+
+        parser_cover_end = 0
+        for i, p in enumerate(ast_paras):
+            if p.get("section") == "cover":
+                parser_cover_end = max(parser_cover_end, i + 1)
+
+        if parser_cover_end == 0:
+            return 0
+
+        has_heading_in_cover = False
+        for i in range(parser_cover_end):
+            style = (ast_paras[i].get("style") or "").strip()
+            if style.startswith("Heading"):
+                has_heading_in_cover = True
+                break
+
+        if has_heading_in_cover and parser_cover_end > 5:
+            print(f"[INFO] Cover section contains headings ({parser_cover_end} paras) - treating as body content")
+            return 0
+
+        return parser_cover_end
+
     def _normalize_sections(self):
         ast_paras = self.ast.get("paragraphs", [])
         doc_paras = self.doc.paragraphs
         count = min(len(doc_paras), len(ast_paras))
+        doc_body = self.doc.element.body
 
-        cover_end = 0
+        cover_end = self._detect_real_cover_end()
+
         ref_start = count
-
         for i, p in enumerate(ast_paras):
-            section = p.get("section", "")
             text = (p.get("text") or "").strip()
-            style = p.get("style", "") or ""
-            if section == "cover":
-                cover_end = max(cover_end, i + 1)
+            style = (p.get("style") or "").strip()
             if "Heading 1" in style and "参考文献" in text:
                 ref_start = i
+                break
 
-        toc_start = cover_end
-        toc_end = cover_end
-        for i in range(cover_end, count):
-            if i < len(ast_paras):
-                style = ast_paras[i].get("style", "") or ""
-                if "Heading 1" in style:
-                    toc_end = i
-                    break
+        has_cover = cover_end > 0 and cover_end < count
 
-        if toc_end <= toc_start:
-            toc_end = toc_start
-
-        if cover_end > 0 and cover_end < len(doc_paras):
+        if has_cover and cover_end < len(doc_paras):
             cover_last = doc_paras[cover_end - 1]._element
             ppr = cover_last.find(qn('w:pPr'))
             if ppr is None:
@@ -879,16 +886,6 @@ class ASTToDocxConverter:
                 cover_last.insert(0, ppr)
             sect_pr = OxmlElement('w:sectPr')
             self._set_section_properties(sect_pr, is_cover=True)
-            ppr.append(sect_pr)
-
-        if toc_end > toc_start and toc_end < len(doc_paras):
-            toc_last = doc_paras[toc_end - 1]._element
-            ppr = toc_last.find(qn('w:pPr'))
-            if ppr is None:
-                ppr = OxmlElement('w:pPr')
-                toc_last.insert(0, ppr)
-            sect_pr = OxmlElement('w:sectPr')
-            self._set_section_properties(sect_pr, is_toc=True)
             ppr.append(sect_pr)
 
         if ref_start < count and ref_start < len(doc_paras):
@@ -901,7 +898,6 @@ class ASTToDocxConverter:
             self._set_section_properties(sect_pr, is_ref=True)
             ppr.append(sect_pr)
 
-        doc_body = self.doc.element.body
         final_sect_pr = OxmlElement('w:sectPr')
         self._set_section_properties(final_sect_pr, is_final=True)
         doc_body.append(final_sect_pr)
@@ -924,9 +920,7 @@ class ASTToDocxConverter:
 
         if not is_cover and not is_toc:
             pg_num_type = OxmlElement('w:pgNumType')
-            if is_ref:
-                pass
-            else:
+            if is_final:
                 pg_num_type.set(qn('w:start'), '1')
             sect_pr.append(pg_num_type)
 
@@ -939,8 +933,8 @@ class ASTToDocxConverter:
             self._remove_all_sections()
             self.convert_paragraphs_in_place()
             self._fix_table_fonts_in_place()
-            self._generate_toc_page()
             self._normalize_sections()
+            self._generate_toc_page()
             self._apply_header_footer()
             self.save(output_path)
         else:
@@ -948,8 +942,8 @@ class ASTToDocxConverter:
             self.setup_document()
             self.convert_paragraphs()
             self.convert_tables()
-            self._generate_toc_page()
             self._normalize_sections()
+            self._generate_toc_page()
             self._apply_header_footer()
             self.save(output_path)
 

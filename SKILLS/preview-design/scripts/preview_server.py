@@ -721,6 +721,13 @@ def run_preview(ast_path, template_config_path, source_docx_path=None):
         "edited_config": STATE.edited_config
     }
 
+    if STATE.edited_config:
+        output_dir = Path("workspace/validated")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with open(output_dir / "edited_config.json", "w", encoding="utf-8") as f:
+            json.dump(STATE.edited_config, f, ensure_ascii=False, indent=2)
+        print(f"[INFO] User edited config saved to: {output_dir / 'edited_config.json'}")
+
     print(f"[INFO] User confirmed: {STATE.confirmed}")
     return result
 
@@ -730,3 +737,8 @@ if __name__ == "__main__":
     if len(sys.argv) >= 3:
         result = run_preview(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print("Usage: python preview_server.py <ast.json> <template_config.json> [source.docx]")
+        print()
+        print("Example:")
+        print("  python preview_server.py workspace/parsed/document_ast.json workspace/validated/template_config.json workspace/input/input.docx")

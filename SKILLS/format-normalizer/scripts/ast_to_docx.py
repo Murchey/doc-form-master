@@ -899,6 +899,23 @@ class ASTToDocxConverter:
             ppr.append(sect_pr)
 
         if ref_start < count and ref_start < len(doc_paras):
+            if ref_start > 0:
+                prev_para = doc_paras[ref_start - 1]._element
+                prev_ppr = prev_para.find(qn('w:pPr'))
+                if prev_ppr is None:
+                    prev_ppr = OxmlElement('w:pPr')
+                    prev_para.insert(0, prev_ppr)
+                existing_sect = False
+                for child in prev_ppr:
+                    tag_local = child.tag.split('}')[1] if '}' in child.tag else child.tag
+                    if tag_local == 'sectPr':
+                        existing_sect = True
+                        break
+                if not existing_sect:
+                    sect_pr = OxmlElement('w:sectPr')
+                    self._set_section_properties(sect_pr, is_ref=True)
+                    prev_ppr.append(sect_pr)
+
             ref_para = doc_paras[ref_start]._element
             ppr = ref_para.find(qn('w:pPr'))
             if ppr is None:
@@ -914,10 +931,6 @@ class ASTToDocxConverter:
             if not existing_pb:
                 pb = OxmlElement('w:pageBreakBefore')
                 ppr.append(pb)
-
-            sect_pr = OxmlElement('w:sectPr')
-            self._set_section_properties(sect_pr, is_ref=True)
-            ppr.append(sect_pr)
 
         final_sect_pr = OxmlElement('w:sectPr')
         self._set_section_properties(final_sect_pr, is_final=True)

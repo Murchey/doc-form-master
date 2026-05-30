@@ -22,16 +22,20 @@ import sys
 sys.path.insert(0, 'SKILLS/format-normalizer/scripts')
 from normalizer import FormatNormalizer
 
+# 智能模式（已格式化文档，保留原始格式）
 normalizer = FormatNormalizer(
     'workspace/parsed/document_ast.json',
-    'workspace/validated/template_config.json'
+    'workspace/validated/template_config.json',
+    smart_mode=True
 )
 normalizer.run()
 # 输出: workspace/normalized/normalized_ast.json
 ```
 
 **参数**：
-- `__init__(ast_path, config_path=None)` - AST 路径、配置路径
+- `__init__(ast_path, config_path=None, smart_mode=False)` - AST 路径、配置路径、智能模式
+- `smart_mode=True` - 只标准化标题样式，保留正文原始格式
+- `smart_mode=False` - 标准模式，覆盖所有格式
 - `run()` - 执行标准化
 
 ## DOCX 生成（ast_to_docx.py）

@@ -15,9 +15,9 @@ tools: [python]
 # Skills 索引（按需加载，禁止预读）
 
 ```
-docx-parser → xml-safety → formula-protection → template-engine → font-manager
+doc-compatibility → markdown-converter → docx-parser → xml-safety → formula-protection → template-engine → font-manager
 → format-normalizer（已格式化）/ zero-format-normalizer（零格式）
-→ preview-design → image-layout → translation-engine → pdf-export
+→ margin-manager → preview-design → image-layout → translation-engine → pdf-export
 ```
 
 ---
@@ -43,6 +43,41 @@ docx-parser → xml-safety → formula-protection → template-engine → font-m
 
 ## Step 1-2: 初始化
 创建工作区目录（input/output/parsed/normalized/validated/reports/logs/temp/checkpoints），复制用户文件到 `workspace/input/`
+
+## Step 2b: DOC 兼容性检查
+读取 `SKILLS/doc-compatibility/SKILL.md`，检测输入文件是否为旧版 .doc 格式：
+- 如果是 .doc 格式，调用 `doc_converter.py` 转换为 .docx
+- 转换方法优先级：win32com（Word）→ LibreOffice
+- 转换后更新 `workspace/input/input.docx` 路径
+- 如果是 .docx 格式，跳过此步骤
+
+```python
+import sys
+sys.path.insert(0, 'SKILLS/doc-compatibility/scripts')
+from doc_converter import DocConverter
+
+converter = DocConverter()
+if converter.is_doc_format('workspace/input/input.doc'):
+    result = converter.convert('workspace/input/input.doc', 'workspace/input/input.docx')
+```
+
+## Step 2c: Markdown 转换（如输入为 .md/.txt）
+读取 `SKILLS/markdown-converter/SKILL.md`，检测输入文件是否为 Markdown 格式：
+- 如果是 .md/.txt 格式且包含 Markdown 内容，调用 `md_converter.py` 转换为 .docx
+- 自动检测并格式化 LaTeX 数学公式（添加 `$` 分隔符）
+- 使用 pandoc 转换为 DOCX（支持 MathML 公式渲染）
+- 转换后更新 `workspace/input/input.docx` 路径
+- 如果是 .docx 格式，跳过此步骤
+
+```python
+import sys
+sys.path.insert(0, 'SKILLS/markdown-converter/scripts')
+from md_converter import MarkdownConverter
+
+converter = MarkdownConverter()
+if converter._is_markdown('workspace/input/input.md'):
+    result = converter.convert('workspace/input/input.md', 'workspace/input/input.docx')
+```
 
 ## Step 3: 解析文档
 读取 `SKILLS/docx-parser/SKILL.md` + `scripts/parser.py`，生成 `document_ast.json`
@@ -125,11 +160,28 @@ result = run_preview(
 
 ## Step 9a/9b: 格式化
 读取 `workspace/validated/edited_config.json` 中的用户确认配置（如有），与 `template_config.json` 合并后：
-- **已格式化**：`ast_to_docx.py` 处理
+- **已格式化**：使用 `smart_mode=True` 调用 `normalizer.py`，然后 `ast_to_docx.py` 处理
+  - **智能模式**：只标准化标题样式，保留正文原始格式（字体、字号、行距、缩进）
+  - **封面保护**：封面段落标记为 protected，不被格式化覆盖
   - 如 `edited_config.json` 中 `redesign_cover=true`：自动删除原始封面，按配置重建封面（学校名称、标题、信息项）
   - 自动检测参考文献并添加分页符+分节符（确保参考文献在新页开始）
 - **零格式**：`zero_format_normalizer.py` 生成新文档
   - 参考文献自动分页（分页符+分节符）
+
+## Step 9c: 页边距设置
+读取 `SKILLS/margin-manager/SKILL.md`，根据文档类型选择页边距标准：
+- **党政机关公文**（standard='government'）：上3.7cm、下3.5cm、左2.8cm、右2.6cm
+- **学术论文**（standard='academic'）：上下2.54cm、左右3.17cm
+- **镜像页边距**（standard='mirror'）：上下2.54cm、左2.5cm、右2.0cm
+
+```python
+import sys
+sys.path.insert(0, 'SKILLS/margin-manager/scripts')
+from margin_manager import MarginManager
+
+manager = MarginManager()
+result = manager.apply_margins('workspace/output/formatted.docx', standard='academic')
+```
 
 ## Step 10-12: 后续处理
 - image-layout：优化图片（可选）

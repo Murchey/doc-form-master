@@ -3,10 +3,11 @@ from pathlib import Path
 
 
 class FormatNormalizer:
-    def __init__(self, ast_path, config_path=None):
+    def __init__(self, ast_path, config_path=None, smart_mode=False):
 
         self.ast_path = Path(ast_path)
         self.config_path = config_path
+        self.smart_mode = smart_mode
 
         self.ast = self.load_ast()
         self.template_config = self.load_template_config()
@@ -15,7 +16,9 @@ class FormatNormalizer:
             "paragraph_fixes": 0,
             "font_fixes": 0,
             "heading_fixes": 0,
-            "table_fixes": 0
+            "table_fixes": 0,
+            "heading_misclass_fixes": 0,
+            "mode": "smart" if smart_mode else "standard"
         }
 
     def load_ast(self):
@@ -37,10 +40,32 @@ class FormatNormalizer:
     @staticmethod
     def _is_protected(paragraph):
         section = paragraph.get("section", "")
-        style = (paragraph.get("style") or "").strip()
-        if section == "cover" and not style.startswith("Heading"):
+        if section == "cover":
+            return True
+        if section == "toc":
+            return True
+        return False
+
+    def _is_list_paragraph(self, paragraph):
+        text = (paragraph.get("text") or "").strip()
+        if not text:
             return False
-        return section == "toc"
+
+        import re
+        list_patterns = [
+            r'^\d+[\.\、\)）]',
+            r'^[①②③④⑤⑥⑦⑧⑨⑩]',
+            r'^[一二三四五六七八九十]+[\.\、]',
+            r'^[a-zA-Z][\.\、\)]',
+            r'^[\-\•\·\▪\‣\⁃]',
+            r'^\(\d+\)',
+            r'^（\d+）',
+            r'^\[[\d\w]\]',
+        ]
+        for pattern in list_patterns:
+            if re.match(pattern, text):
+                return True
+        return False
 
     def normalize_paragraphs(self):
 
@@ -49,11 +74,20 @@ class FormatNormalizer:
             if self._is_protected(paragraph):
                 continue
 
-            paragraph["alignment"] = "JUSTIFY"
+            style = (paragraph.get("style") or "").strip()
+            if style.startswith("Heading"):
+                continue
 
-            paragraph["line_spacing"] = 1.5
+            if self.smart_mode:
+                if self._is_list_paragraph(paragraph):
+                    continue
 
-            paragraph["first_line_indent"] = 2
+                if "alignment" not in paragraph:
+                    paragraph["alignment"] = "JUSTIFY"
+            else:
+                paragraph["alignment"] = "JUSTIFY"
+                paragraph["line_spacing"] = 1.5
+                paragraph["first_line_indent"] = 2
 
             self.fix_report["paragraph_fixes"] += 1
 
@@ -71,10 +105,23 @@ class FormatNormalizer:
             if english_config.get("family"):
                 english_font = english_config["family"]
 
+        common_chinese_fonts = [
+            "宋体", "黑体", "仿宋", "楷体", "微软雅黑",
+            "SimSun", "SimHei", "FangSong", "KaiTi",
+            "Noto Serif CJK", "Noto Sans CJK"
+        ]
+        common_english_fonts = [
+            "Times New Roman", "Arial", "Calibri", "Cambria",
+            "Georgia", "Verdana", "Helvetica"
+        ]
+
         for paragraph in self.ast.get("paragraphs", []):
 
             if self._is_protected(paragraph):
                 continue
+
+            style = (paragraph.get("style") or "").strip()
+            is_heading = style.startswith("Heading")
 
             for run in paragraph.get("runs", []):
 
@@ -83,12 +130,24 @@ class FormatNormalizer:
 
                 text = run.get("text", "")
 
+                if self.smart_mode and not is_heading:
+                    current_font = run.get("font_name", "")
+                    if current_font:
+                        is_chinese_text = self.contains_chinese(text)
+                        if is_chinese_text:
+                            if any(f in current_font for f in common_chinese_fonts):
+                                continue
+                        else:
+                            if any(f in current_font for f in common_english_fonts):
+                                continue
+
                 if self.contains_chinese(text):
                     run["font_name"] = chinese_font
                 else:
                     run["font_name"] = english_font
 
-                run["font_size"] = "12pt"
+                if not self.smart_mode:
+                    run["font_size"] = "12pt"
 
                 self.fix_report["font_fixes"] += 1
 
@@ -250,7 +309,7 @@ class FormatNormalizer:
         self.export_fix_report()
 
         print(
-            "[INFO] Format normalization completed"
+            f"[INFO] Format normalization completed (mode: {'smart' if self.smart_mode else 'standard'})"
         )
 
 

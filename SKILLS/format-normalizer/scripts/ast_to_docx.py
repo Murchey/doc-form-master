@@ -166,9 +166,11 @@ class ASTToDocxConverter:
     def _is_protected(self, para_data):
         section = para_data.get("section", "")
         style = (para_data.get("style") or "").strip()
-        if section == "cover" and not style.startswith("Heading"):
-            return False
-        return section == "toc"
+        if section == "cover":
+            return True
+        if section == "toc":
+            return True
+        return False
 
     @staticmethod
     def _normalize_alignment(alignment_str):
@@ -1154,6 +1156,23 @@ class ASTToDocxConverter:
             for p in new_cover_paras:
                 body.append(p)
 
+        if hasattr(self, '_cover_logo_para_index') and hasattr(self, '_cover_logo_tmp_path'):
+            try:
+                logo_para_idx = self._cover_logo_para_index
+                if logo_para_idx < len(self.doc.paragraphs):
+                    logo_para = self.doc.paragraphs[logo_para_idx]
+                    logo_width = Cm(logo_cfg.get("width", 120) / 50)
+                    logo_run = logo_para.add_run()
+                    logo_run.add_picture(self._cover_logo_tmp_path, width=logo_width)
+                    print(f"[INFO] Cover logo inserted")
+            except Exception as e:
+                print(f"[WARNING] Failed to insert logo image: {e}")
+            finally:
+                if hasattr(self, '_cover_logo_tmp_path'):
+                    Path(self._cover_logo_tmp_path).unlink(missing_ok=True)
+                    del self._cover_logo_tmp_path
+                    del self._cover_logo_para_index
+
         self.ast["paragraphs"] = [{
             "id": 0, "text": "", "style": "Normal", "section": "cover", "runs": []
         }] * len(new_cover_paras) + self.ast["paragraphs"]
@@ -1177,13 +1196,12 @@ class ASTToDocxConverter:
                 img_bytes = base64.b64decode(img_data)
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
                     tmp.write(img_bytes)
-                    tmp_path = tmp.name
+                    self._cover_logo_tmp_path = tmp.name
             elif img_path and Path(img_path).exists():
-                tmp_path = str(img_path)
+                self._cover_logo_tmp_path = str(img_path)
             else:
                 return
 
-            logo_width_cm = logo_cfg.get("width", 120) / 50
             logo_para = OxmlElement('w:p')
             logo_ppr = OxmlElement('w:pPr')
             logo_jc = OxmlElement('w:jc')
@@ -1191,6 +1209,7 @@ class ASTToDocxConverter:
             logo_ppr.append(logo_jc)
             logo_para.append(logo_ppr)
             new_cover_paras.append(logo_para)
+            self._cover_logo_para_index = len(new_cover_paras) - 1
             print(f"[INFO] Cover logo prepared")
         except Exception as e:
             print(f"[WARNING] Failed to prepare cover logo: {e}")

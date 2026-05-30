@@ -4,9 +4,12 @@
 
 ## 功能特性
 
+- **DOC 格式兼容** - 自动将旧版 .doc 格式转换为 .docx（使用 Word COM 或 LibreOffice）
+- **Markdown 无缝转换** - 支持 .md/.txt 文件导入，自动检测 LaTeX 数学公式，pandoc 转换为 DOCX
 - **中文论文格式化** - 自动标准化中文学术论文排版（GB/T 7713.1-2006）
 - **英文论文格式化** - 支持 APA、IEEE、ACM 等英文论文格式
 - **公文格式化** - 符合国家标准的公文排版（GB/T 9704-2012）
+- **页边距管理** - 支持党政机关公文、学术论文、镜像页边距等多种标准
 - **用户自定义模板** - 支持 YAML/JSON 自定义格式模板
 - **零格式文档处理** - 自动识别并格式化纯文本/无格式文档，智能检测文档结构
 - **智能标题识别** - 支持多种中文标题格式检测（编号、冒号、上下文感知等）
@@ -25,7 +28,8 @@
 
 - Python 3.10+
 - Windows 10/11 (推荐)
-- Microsoft Word 或 LibreOffice (PDF 导出需要)
+- Microsoft Word 或 LibreOffice (DOC 转换和 PDF 导出需要)
+- Pandoc (Markdown 转换需要，安装：`winget install JohnMacFarlane.Pandoc`)
 
 ## 快速开始
 
@@ -59,6 +63,8 @@ pip install -r requirements.txt
 doc-from-master/
 ├── AGENT.md                    # Agent 配置文件
 ├── SKILLS/                     # 技能模块
+│   ├── doc-compatibility/      # DOC 格式兼容（.doc → .docx）
+│   ├── markdown-converter/     # Markdown 转换（.md/.txt → .docx）
 │   ├── docx-parser/            # DOCX 结构解析（含封面/目录检测）
 │   ├── xml-safety/             # XML 安全校验
 │   ├── formula-protection/     # 数学公式保护
@@ -66,6 +72,7 @@ doc-from-master/
 │   ├── font-manager/           # 字体兼容管理
 │   ├── format-normalizer/      # 格式标准化（已有格式文档）
 │   ├── zero-format-normalizer/ # 零格式标准化（纯文本/无格式文档）
+│   ├── margin-manager/         # 页边距管理（公文/学术论文标准）
 │   ├── preview-design/         # 设计预览与用户确认（Web 界面）
 │   ├── image-layout/           # 图片布局优化
 │   ├── translation-engine/     # 中英互译
@@ -82,22 +89,33 @@ doc-from-master/
 ## 处理流程
 
 ```text
+Phase 0: 输入格式兼容
+    doc-compatibility（.doc → .docx）
+    markdown-converter（.md/.txt → .docx，含数学公式处理）
+
 Phase 1: 解析与格式质量检测
     docx-parser → 格式质量检测（已格式化 / 零格式）
 
 Phase 2: 已格式化路径
     xml-safety → formula-protection → template-engine → font-manager
-    → preview-design（用户确认）→ format-normalizer → image-layout
+    → preview-design（用户确认）→ format-normalizer → margin-manager → image-layout
 
 Phase 2b: 零格式路径
     template-engine → font-manager → preview-design（用户确认）
-    → zero-format-normalizer → image-layout
+    → zero-format-normalizer → margin-manager → image-layout
 
 Phase 3: 后处理
     translation-engine (可选)
     pdf-export (可选)
     report-generator
 ```
+
+### 输入格式支持
+系统支持多种输入格式，自动检测并转换：
+- **DOCX** - 直接处理
+- **DOC** - 自动转换为 .docx（使用 Word COM 或 LibreOffice）
+- **Markdown (.md)** - 使用 pandoc 转换为 .docx，支持 LaTeX 数学公式
+- **纯文本 (.txt)** - 智能检测 Markdown 内容并转换
 
 ### 格式质量检测
 系统会自动检测文档的格式质量，决定走哪条处理路径：

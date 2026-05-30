@@ -17,9 +17,11 @@ except ImportError:
 
 
 class ZeroFormatNormalizer:
-    def __init__(self, source_docx_path, template_config_path=None):
+    def __init__(self, source_docx_path, template_config_path=None, edited_config_path=None):
         self.source_docx_path = Path(source_docx_path)
         self.template_config = self._load_template_config(template_config_path)
+        self.edited_config = self._load_edited_config(edited_config_path)
+        self._merge_edited_config()
         self.doc = None
         self.ast = {
             "paragraphs": [],
@@ -33,6 +35,33 @@ class ZeroFormatNormalizer:
             with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         return self._get_default_config()
+
+    def _load_edited_config(self, config_path):
+        if config_path and Path(config_path).exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                print(f"[INFO] Loaded edited config: {config_path}")
+                return config
+        return {}
+
+    def _merge_edited_config(self):
+        if not self.edited_config:
+            return
+
+        for key, value in self.edited_config.items():
+            if key in ["cover_preserved", "redesign_cover", "toc_preserved"]:
+                continue
+            if isinstance(value, dict) and key in self.template_config:
+                self._deep_merge(self.template_config[key], value)
+            else:
+                self.template_config[key] = value
+
+    def _deep_merge(self, base, override):
+        for key, value in override.items():
+            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                self._deep_merge(base[key], value)
+            else:
+                base[key] = value
 
     def _get_default_config(self):
         return {
@@ -860,13 +889,14 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 3:
-        print("Usage: python zero_format_normalizer.py <input.docx> <output.docx> [template.json]")
+        print("Usage: python zero_format_normalizer.py <input.docx> <output.docx> [template.json] [edited_config.json]")
         sys.exit(1)
 
     input_path = sys.argv[1]
     output_path = sys.argv[2]
     template_path = sys.argv[3] if len(sys.argv) > 3 else None
+    edited_path = sys.argv[4] if len(sys.argv) > 4 else None
 
-    normalizer = ZeroFormatNormalizer(input_path, template_path)
+    normalizer = ZeroFormatNormalizer(input_path, template_path, edited_path)
     result = normalizer.run(output_path)
     print(f"[INFO] Result: {json.dumps(result, indent=2)}")

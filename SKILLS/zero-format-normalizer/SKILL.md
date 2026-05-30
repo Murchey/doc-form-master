@@ -8,7 +8,7 @@ tools: [python]
 
 从零格式 DOCX 提取文本，按模板生成规范文档。
 
-**输入**：源 DOCX + `template_config`
+**输入**：源 DOCX + `template_config` + `edited_config`（可选）
 **输出**：`workspace/output/formatted.docx`
 
 ---
@@ -16,7 +16,7 @@ tools: [python]
 # 调用方式
 
 ```bash
-python SKILLS/zero-format-normalizer/scripts/zero_format_normalizer.py <input.docx> <output.docx> [template.json]
+python SKILLS/zero-format-normalizer/scripts/zero_format_normalizer.py <input.docx> <output.docx> [template.json] [edited_config.json]
 ```
 
 ```python
@@ -26,14 +26,15 @@ from zero_format_normalizer import ZeroFormatNormalizer
 
 normalizer = ZeroFormatNormalizer(
     'workspace/input/input.docx',
-    'workspace/validated/template_config.json'
+    'workspace/validated/template_config.json',
+    'workspace/validated/edited_config.json'  # 可选：用户预览确认后的配置
 )
 normalizer.run('workspace/output/formatted.docx')
 # 输出: workspace/output/formatted.docx
 ```
 
 **参数**：
-- `__init__(source_docx_path, template_config_path=None)` - 源 DOCX 路径、模板配置路径
+- `__init__(source_docx_path, template_config_path=None, edited_config_path=None)` - 源 DOCX 路径、模板配置路径、用户编辑配置路径
 - `run(output_path)` - 生成格式化 DOCX
 
 ---

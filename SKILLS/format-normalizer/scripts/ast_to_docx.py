@@ -796,6 +796,24 @@ class ASTToDocxConverter:
                             if not run.font.size:
                                 run.font.size = Pt(self._get_body_font_size())
 
+    def _apply_table_processor(self, output_path):
+        try:
+            import sys
+            skills_dir = Path(__file__).parent.parent.parent
+            sys.path.insert(0, str(skills_dir / 'table-processor' / 'scripts'))
+            from table_processor import TableProcessor
+
+            config_path = None
+            if hasattr(self, 'template_config') and self.template_config:
+                config_path = str(Path(__file__).parent.parent.parent.parent / 'workspace' / 'validated' / 'template_config.json')
+
+            processor = TableProcessor(str(output_path), config_path)
+            result = processor.run()
+            processor.save(str(output_path))
+            print(f"[INFO] Table-processor: {result['tables_formatted']} tables, {result['captions_formatted']} captions formatted")
+        except Exception as e:
+            print(f"[WARN] Table-processor skipped: {e}")
+
     def _insert_page_break_before_references(self):
         ast_paras = self.ast.get("paragraphs", [])
         doc_paras = self.doc.paragraphs
@@ -1244,6 +1262,8 @@ class ASTToDocxConverter:
             self._generate_toc_page()
             self._apply_header_footer()
             self.save(output_path)
+
+        self._apply_table_processor(output_path)
 
 
 if __name__ == "__main__":

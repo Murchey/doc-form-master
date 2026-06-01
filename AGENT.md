@@ -17,7 +17,7 @@ tools: [python]
 ```
 doc-compatibility → markdown-converter → docx-parser → xml-safety → formula-protection → template-engine → font-manager
 → format-normalizer（已格式化）/ zero-format-normalizer（零格式）
-→ margin-manager → preview-design → image-layout → translation-engine → pdf-export
+→ table-processor → margin-manager → preview-design → image-layout → translation-engine → pdf-export
 ```
 
 ---
@@ -180,6 +180,42 @@ normalizer = ZeroFormatNormalizer(
     'workspace/validated/edited_config.json'  # 必须传入用户编辑配置
 )
 normalizer.run('workspace/output/formatted.docx')
+```
+
+**注意**：格式标准化完成后，会自动调用 `table-processor` 进行表格格式化处理（见 Step 9b）。
+
+## Step 9b: 表格格式化处理
+格式标准化（Step 9a）完成后，自动调用 `table-processor` 对文档中的表格进行学术论文标准格式化。
+
+**此步骤已集成在 format-normalizer 和 zero-format-normalizer 中，自动执行。**
+
+处理内容：
+- **表格对齐**：表格整体居中对齐
+- **三线表边框**：顶线/底线 1.5pt 粗实线，栏目线 0.75pt 细实线，无竖线
+- **表头行格式**：首行黑体 10.5pt（五号）加粗，居中对齐，单倍行距
+- **表体格式**：宋体 10.5pt（五号），居中对齐，单倍行距
+- **单元格边距**：0.1cm 内边距
+- **表格题注**：检测「表 X-X」格式题注，黑体 10.5pt 居中，位于表格上方
+- **题注关联**：题注段落与表格保持同页（keep with next）
+- **图片保护**：保留表格单元格内的图片，不压缩不删除
+
+题注检测模式：
+| 模式 | 示例 |
+|------|------|
+| `表-X-X` | 表-2-1工作流节点类型表 |
+| `表 X-X` | 表 1-1 xxx |
+| `表X` | 表1 xxx |
+| `Table X` | Table 1 xxx |
+
+独立调用（如需单独处理表格）：
+```python
+import sys
+sys.path.insert(0, 'SKILLS/table-processor/scripts')
+from table_processor import TableProcessor
+
+processor = TableProcessor('workspace/output/formatted.docx', 'workspace/validated/template_config.json')
+processor.run()
+processor.save('workspace/output/formatted.docx')
 ```
 
 ## Step 9c: 页边距设置

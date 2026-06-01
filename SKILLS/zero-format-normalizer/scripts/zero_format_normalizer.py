@@ -876,6 +876,8 @@ class ZeroFormatNormalizer:
         print("[INFO] Saving formatted document...")
         self.save(output_path)
 
+        self._apply_table_processor(output_path)
+
         print("[INFO] Zero format normalization completed!")
         return {
             "paragraphs": len(self.ast['paragraphs']),
@@ -883,6 +885,24 @@ class ZeroFormatNormalizer:
             "images": len(self.ast['images']),
             "output_path": str(output_path)
         }
+
+    def _apply_table_processor(self, output_path):
+        try:
+            import sys
+            skills_dir = Path(__file__).parent.parent.parent
+            sys.path.insert(0, str(skills_dir / 'table-processor' / 'scripts'))
+            from table_processor import TableProcessor
+
+            config_path = str(self.config_path) if hasattr(self, 'config_path') and self.config_path else None
+            if config_path is None:
+                config_path = str(Path(__file__).parent.parent.parent.parent / 'workspace' / 'validated' / 'template_config.json')
+
+            processor = TableProcessor(str(output_path), config_path)
+            result = processor.run()
+            processor.save(str(output_path))
+            print(f"[INFO] Table-processor: {result['tables_formatted']} tables, {result['captions_formatted']} captions formatted")
+        except Exception as e:
+            print(f"[WARN] Table-processor skipped: {e}")
 
 
 if __name__ == "__main__":

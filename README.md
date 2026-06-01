@@ -20,6 +20,7 @@
 - **中英互译** - 保持文档结构的智能翻译
 - **数学公式保护** - 完整保留 OMML、MathType 公式
 - **图片布局优化** - 自动调整图片位置和大小
+- **表格格式化** - 三线表样式、单元格字体对齐、表格题注检测与格式化、题注与表格同页保持
 - **字体兼容管理** - 跨平台字体检测与 fallback
 - **PDF 导出** - 高质量 PDF 输出
 - **XML 安全保护** - 防止 DOCX 结构损坏
@@ -72,6 +73,7 @@ doc-from-master/
 │   ├── font-manager/           # 字体兼容管理
 │   ├── format-normalizer/      # 格式标准化（已有格式文档）
 │   ├── zero-format-normalizer/ # 零格式标准化（纯文本/无格式文档）
+│   ├── table-processor/        # 表格格式化（三线表/题注/单元格格式）
 │   ├── margin-manager/         # 页边距管理（公文/学术论文标准）
 │   ├── preview-design/         # 设计预览与用户确认（Web 界面）
 │   ├── image-layout/           # 图片布局优化
@@ -98,11 +100,11 @@ Phase 1: 解析与格式质量检测
 
 Phase 2: 已格式化路径
     xml-safety → formula-protection → template-engine → font-manager
-    → preview-design（用户确认）→ format-normalizer → margin-manager → image-layout
+    → preview-design（用户确认）→ format-normalizer → table-processor → margin-manager → image-layout
 
 Phase 2b: 零格式路径
     template-engine → font-manager → preview-design（用户确认）
-    → zero-format-normalizer → margin-manager → image-layout
+    → zero-format-normalizer → table-processor → margin-manager → image-layout
 
 Phase 3: 后处理
     translation-engine (可选)
@@ -121,6 +123,23 @@ Phase 3: 后处理
 系统会自动检测文档的格式质量，决定走哪条处理路径：
 - **已格式化**：文档有标题样式、字体配置、段落格式 → 走已格式化路径
 - **零格式**：文档无任何格式，仅含纯文本内容 → 走零格式路径
+
+### 表格格式化
+格式标准化完成后，自动对文档中的表格进行学术论文标准格式化处理：
+
+| 项目 | 规范 |
+|------|------|
+| 表格位置 | 居中对齐 |
+| 边框样式 | 三线表（顶线/底线 1.5pt 粗实线，栏目线 0.75pt 细实线，无竖线） |
+| 表头字体 | 黑体 10.5pt（五号），加粗居中 |
+| 表体字体 | 宋体 10.5pt（五号），居中对齐 |
+| 行距 | 单倍行距 |
+| 单元格边距 | 0.1cm 内边距 |
+| 题注位置 | 表格上方 |
+| 题注字体 | 黑体 10.5pt（五号），居中 |
+| 题注格式 | 「表 X-X  题注内容」 |
+| 题注与表格 | 保持同页（keep with next） |
+| 表格内图片 | 保留不压缩 |
 
 ## 模板说明
 

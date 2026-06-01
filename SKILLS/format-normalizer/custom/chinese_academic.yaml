@@ -136,11 +136,17 @@ table:
 
   auto_fit: true
 
-  border: single
+  border: three-line
 
   cell_margin: 0.1
 
   keep_together: true
+
+  header_font_size: 10.5
+
+  cell_font_size: 10.5
+
+  cell_line_spacing: 1.0
 
 caption:
 
@@ -150,11 +156,19 @@ caption:
 
     alignment: center
 
+    font_size: 10.5
+
+    bold: true
+
   figure:
 
     position: bottom
 
     alignment: center
+
+    font_size: 10.5
+
+    bold: true
 
 # =========================
 # 图片配置

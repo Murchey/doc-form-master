@@ -97,6 +97,18 @@ pagination:
   widow_control: true
   keep_heading_with_content: true
 
+footnote:
+  enabled: true
+  font_size_cn: 9
+  font_size_en: 8
+  line_spacing: single
+  numbering: arabic
+  restart_per_page: true
+  separator_length: 25
+  font_name_cn: 宋体
+  font_name_en: Times New Roman
+  first_line_indent: 0
+
 protection:
   preserve_formulas: true
   preserve_images: true

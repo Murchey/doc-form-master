@@ -21,6 +21,8 @@
 - **数学/化学公式保护** - 完整保留 OMML（`m:oMath`/`m:oMathPara`）、MathType 公式，格式化后公式位置不变
 - **图片布局优化** - 自动调整图片位置和大小
 - **表格格式化** - 三线表样式、单元格字体对齐、表格题注检测与格式化、题注与表格同页保持
+- **脚注格式化** - 脚注/尾注标准化，支持学术论文格式，自动检测并格式化脚注内容
+- **自定义格式管理** - 提供 WEB 界面管理格式模板配置，支持创建、编辑、导入、导出配置
 - **字体兼容管理** - 跨平台字体检测与 fallback
 - **PDF 导出** - 高质量 PDF 输出
 - **XML 安全保护** - 防止 DOCX 结构损坏
@@ -74,6 +76,8 @@ doc-from-master/
 │   ├── format-normalizer/      # 格式标准化（已有格式文档）
 │   ├── zero-format-normalizer/ # 零格式标准化（纯文本/无格式文档）
 │   ├── table-processor/        # 表格格式化（三线表/题注/单元格格式）
+│   ├── footnote-processor/     # 脚注格式化（脚注/尾注标准化）
+│   ├── custom-format-manager/  # 自定义格式配置管理（WEB界面）
 │   ├── margin-manager/         # 页边距管理（公文/学术论文标准）
 │   ├── preview-design/         # 设计预览与用户确认（Web 界面）
 │   ├── image-layout/           # 图片布局优化
@@ -100,11 +104,11 @@ Phase 1: 解析与格式质量检测
 
 Phase 2: 已格式化路径
     xml-safety → formula-protection → template-engine → font-manager
-    → preview-design（用户确认）→ format-normalizer → table-processor → margin-manager → image-layout
+    → preview-design（用户确认）→ format-normalizer → table-processor → footnote-processor → margin-manager → image-layout
 
 Phase 2b: 零格式路径
     template-engine → font-manager → preview-design（用户确认）
-    → zero-format-normalizer → table-processor → margin-manager → image-layout
+    → zero-format-normalizer → table-processor → footnote-processor → margin-manager → image-layout
 
 Phase 3: 后处理
     translation-engine (可选)
@@ -140,6 +144,27 @@ Phase 3: 后处理
 | 题注格式 | 「表 X-X  题注内容」 |
 | 题注与表格 | 保持同页（keep with next） |
 | 表格内图片 | 保留不压缩 |
+
+### 脚注格式化
+格式标准化完成后，自动对文档中的脚注和尾注进行学术论文标准格式化处理：
+
+| 项目 | 规范 |
+|------|------|
+| 脚注字号 | 小五号（9pt） |
+| 脚注字体 | 中文宋体，英文 Times New Roman |
+| 脚注行距 | 单倍行距 |
+| 编号格式 | 上标阿拉伯数字 |
+| 分隔线 | 细实线（0.5pt），页面宽度 1/3 |
+| 尾注位置 | 文档末尾或节末 |
+
+配置项（位于模板文件 `footnote` 部分）：
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `enabled` | true | 是否启用脚注处理 |
+| `font_size` | 9 | 脚注字号（磅） |
+| `line_spacing` | single | 脚注行距 |
+| `numbering` | arabic | 编号格式：arabic/roman/symbol |
+| `separator_length` | 25 | 分隔线长度（毫米） |
 
 ## 模板说明
 

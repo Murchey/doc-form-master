@@ -282,9 +282,23 @@ footnote:
 
   enabled: true
 
-  font_size: 9
+  font_size_cn: 10.5
+
+  font_size_en: 9
 
   line_spacing: single
+
+  numbering: circled
+
+  restart_per_page: true
+
+  separator_length: 25
+
+  font_name_cn: 宋体
+
+  font_name_en: Times New Roman
+
+  first_line_indent: 0
 
 # =========================
 # 安全保护规则

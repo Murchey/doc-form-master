@@ -17,7 +17,8 @@ tools: [python]
 ```
 doc-compatibility → markdown-converter → docx-parser → xml-safety → formula-protection → template-engine → font-manager
 → format-normalizer（已格式化）/ zero-format-normalizer（零格式）
-→ table-processor → margin-manager → preview-design → image-layout → translation-engine → pdf-export
+→ table-processor → footnote-processor → margin-manager → preview-design → image-layout → translation-engine → pdf-export
+→ custom-format-manager（自定义格式配置管理，独立调用）
 ```
 
 ---
@@ -218,6 +219,38 @@ processor.run()
 processor.save('workspace/output/formatted.docx')
 ```
 
+## Step 9b2: 脚注格式化处理
+表格格式化（Step 9b）完成后，自动调用 `footnote-processor` 对文档中的脚注和尾注进行学术论文标准格式化。
+
+**此步骤已集成在 format-normalizer 和 zero-format-normalizer 中，自动执行。**
+
+处理内容：
+- **脚注检测**：自动检测文档中的脚注（footnote）和尾注（endnote）
+- **字体字号**：脚注文本使用小五号（9pt），中文宋体，英文 Times New Roman
+- **行距控制**：脚注内部单倍行距
+- **编号格式**：上标阿拉伯数字
+- **分隔线**：脚注与正文之间的分隔线样式（细实线 0.5pt）
+
+配置项（位于模板文件 `footnote` 部分）：
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `enabled` | true | 是否启用脚注处理 |
+| `font_size` | 9 | 脚注字号（磅） |
+| `line_spacing` | single | 脚注行距 |
+| `numbering` | arabic | 编号格式：arabic/roman/symbol |
+| `separator_length` | 25 | 分隔线长度（毫米） |
+
+独立调用（如需单独处理脚注）：
+```python
+import sys
+sys.path.insert(0, 'SKILLS/footnote-processor/scripts')
+from footnote_processor import FootnoteProcessor
+
+processor = FootnoteProcessor('workspace/output/formatted.docx')
+processor.run()
+processor.save('workspace/output/formatted.docx')
+```
+
 ## Step 9c: 页边距设置
 读取 `SKILLS/margin-manager/SKILL.md`，根据文档类型选择页边距标准：
 - **党政机关公文**（standard='government'）：上3.7cm、下3.5cm、左2.8cm、右2.6cm
@@ -239,6 +272,26 @@ result = manager.apply_margins('workspace/output/formatted.docx', standard='acad
 - pdf-export：导出 PDF（可选）
 
 ## Step 13: 生成报告
+
+## Step 14: 自定义格式配置管理（独立调用）
+
+当用户要求修改自定义格式时，启动 `custom-format-manager` WEB 界面，允许用户管理格式配置。
+
+**此步骤为独立调用，不包含在正常格式化流程中。**
+
+```python
+import sys
+sys.path.insert(0, 'SKILLS/custom-format-manager/scripts')
+from web_server import run_server
+
+run_server(host='127.0.0.1', port=5001)
+```
+
+WEB 界面功能：
+- **配置管理**：查看、创建、编辑、删除、导入、导出格式配置
+- **实时编辑**：分页编辑配置项（基本信息、页面设置、标题样式、正文格式、表格格式、脚注格式等）
+- **YAML 预览**：实时预览 YAML 格式的配置文件
+- **模板继承**：基于内置模板创建自定义配置
 
 ---
 

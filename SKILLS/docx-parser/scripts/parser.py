@@ -55,6 +55,7 @@ class DocxParser:
         W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
         A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
         R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        M_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
 
         with zipfile.ZipFile(self.docx_path, "r") as zip_ref:
             media_cache = {}
@@ -70,6 +71,23 @@ class DocxParser:
                 }
 
                 for child in para._element:
+                    tag_local = child.tag.split('}')[1] if '}' in child.tag else child.tag
+                    ns_uri = child.tag.split('}')[0].strip('{') if '}' in child.tag else ''
+
+                    if ns_uri == M_NS and tag_local in ('oMath', 'oMathPara'):
+                        xml_str = etree.tostring(child).decode('utf-8')
+                        math_texts = []
+                        for mt in child.iter(f'{{{M_NS}}}t'):
+                            if mt.text:
+                                math_texts.append(mt.text)
+                        paragraph_data["runs"].append({
+                            "type": "formula",
+                            "formula_type": tag_local,
+                            "xml": xml_str,
+                            "text": ''.join(math_texts)
+                        })
+                        continue
+
                     if child.tag != f'{{{W_NS}}}r':
                         continue
 

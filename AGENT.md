@@ -289,7 +289,12 @@ workspace/reports/             # 处理报告
 非破坏性、AST 稳定、relationship 安全、namespace 安全、编号安全
 
 ## 公式规则
-保护 OMML/MathType/LaTeX，禁止修改/删除公式 XML
+- 保护 OMML（`m:oMath`/`m:oMathPara`）/MathType/LaTeX，禁止修改/删除公式 XML
+- 解析器将公式作为 `type: "formula"` run 存入 AST，保留原始 XML 和位置
+- 格式化时公式 run 保持原始位置（文本之间），不被移到段落开头
+- 纯公式段落不添加首行缩进
+- 标准化器跳过公式 run 的字体/字号修改
+- 公式 XML 通过 `etree.fromstring` 原样还原，确保渲染一致
 
 ## 图片规则
 保护 relationship/清晰度/Caption，禁止压缩/删除

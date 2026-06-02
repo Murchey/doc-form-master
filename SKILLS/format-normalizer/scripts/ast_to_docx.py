@@ -3,6 +3,7 @@ import base64
 import shutil
 import tempfile
 from pathlib import Path
+from lxml import etree
 from docx import Document
 from docx.shared import Pt, Cm, Emu
 from docx.shared import RGBColor
@@ -156,12 +157,27 @@ class ASTToDocxConverter:
             traceback.print_exc()
 
     @staticmethod
-    def _clear_paragraph(para):
+    def _clear_paragraph(para, include_formulas=False):
         p_elem = para._element
+        M_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
         for child in list(p_elem):
             tag_local = child.tag.split('}')[1] if '}' in child.tag else child.tag
+            ns_uri = child.tag.split('}')[0].strip('{') if '}' in child.tag else ''
             if tag_local == 'r':
                 p_elem.remove(child)
+            elif include_formulas and ns_uri == M_NS and tag_local in ('oMath', 'oMathPara'):
+                p_elem.remove(child)
+
+    def _add_formula_to_paragraph(self, para, run_data):
+        formula_xml = run_data.get("xml", "")
+        if not formula_xml:
+            return
+        try:
+            p_elem = para._element
+            formula_elem = etree.fromstring(formula_xml.encode('utf-8'))
+            p_elem.append(formula_elem)
+        except Exception as e:
+            print(f"[WARNING] Formula insertion error: {e}")
 
     def _is_protected(self, para_data):
         section = para_data.get("section", "")
@@ -206,9 +222,10 @@ class ASTToDocxConverter:
 
             runs = para_data.get("runs", [])
             all_image = runs and all(r.get("type") == "image" for r in runs)
+            has_formula = any(r.get("type") == "formula" for r in runs)
             if not all_image:
                 text = para_data.get("text", "")
-                if not text.strip() and not any(r.get("type") == "image" for r in runs):
+                if not text.strip() and not has_formula and not any(r.get("type") == "image" for r in runs):
                     continue
 
             style_name = para_data.get("style", "")
@@ -236,11 +253,14 @@ class ASTToDocxConverter:
         spacing_after = lvl_cfg.get("spacing_after", 18 if heading_level == 1 else 12 if heading_level == 2 else 6)
         alignment_str = lvl_cfg.get("alignment", "center" if heading_level == 1 else "left")
 
-        self._clear_paragraph(para)
+        self._clear_paragraph(para, include_formulas=True)
 
         runs = para_data.get("runs", [])
         if runs:
             for run_data in runs:
+                if run_data.get("type") == "formula":
+                    self._add_formula_to_paragraph(para, run_data)
+                    continue
                 run = para.add_run(run_data.get("text", ""))
                 run.bold = bold
                 run.font.size = Pt(font_size)
@@ -326,8 +346,9 @@ class ASTToDocxConverter:
     def _apply_normal_paragraph(self, para_data, para):
         runs = para_data.get("runs", [])
         has_image = any(r.get("type") == "image" for r in runs)
+        has_formula = any(r.get("type") == "formula" for r in runs)
 
-        self._clear_paragraph(para)
+        self._clear_paragraph(para, include_formulas=True)
 
         para_cfg = self.template_config.get("paragraph", {})
         default_align = para_cfg.get("alignment", "justify").upper()
@@ -345,7 +366,8 @@ class ASTToDocxConverter:
                 para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
         first_indent = para_cfg.get("first_indent", 2)
-        para.paragraph_format.first_line_indent = self._char_indent(first_indent)
+        if not has_formula:
+            para.paragraph_format.first_line_indent = self._char_indent(first_indent)
 
         line_spacing = para_cfg.get("line_spacing", 1.5)
         para.paragraph_format.line_spacing = line_spacing
@@ -361,6 +383,10 @@ class ASTToDocxConverter:
         for run_data in runs:
             if run_data.get("type") == "image":
                 self._add_image_to_paragraph(para, run_data)
+                continue
+
+            if run_data.get("type") == "formula":
+                self._add_formula_to_paragraph(para, run_data)
                 continue
 
             run = para.add_run(run_data.get("text", ""))
@@ -436,6 +462,10 @@ class ASTToDocxConverter:
                         self._add_image_to_paragraph(para, run_data)
                         continue
 
+                    if run_data.get("type") == "formula":
+                        self._add_formula_to_paragraph(para, run_data)
+                        continue
+
                     run = para.add_run(run_data.get("text", ""))
                     if run_data.get("bold"):
                         run.bold = True
@@ -463,6 +493,9 @@ class ASTToDocxConverter:
         para = self.doc.add_paragraph()
 
         for run_data in para_data.get("runs", []):
+            if run_data.get("type") == "formula":
+                self._add_formula_to_paragraph(para, run_data)
+                continue
             run = para.add_run(run_data.get("text", ""))
             run.bold = bold
             run.font.size = Pt(font_size)

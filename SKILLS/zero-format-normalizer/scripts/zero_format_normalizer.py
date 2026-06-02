@@ -3,6 +3,7 @@ import re
 import zipfile
 import tempfile
 from pathlib import Path
+from lxml import etree
 from docx import Document
 from docx.shared import Pt, Cm, Emu
 from docx.shared import RGBColor
@@ -119,15 +120,60 @@ class ZeroFormatNormalizer:
                 "runs": []
             }
 
-            for run in para.runs:
-                run_data = {
-                    "text": run.text,
-                    "bold": run.bold,
-                    "italic": run.italic,
-                    "font_name": run.font.name,
-                    "font_size": str(run.font.size) if run.font.size else None
-                }
-                para_data["runs"].append(run_data)
+            M_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
+            for child in para._element:
+                tag_local = child.tag.split('}')[1] if '}' in child.tag else child.tag
+                ns_uri = child.tag.split('}')[0].strip('{') if '}' in child.tag else ''
+
+                if ns_uri == M_NS and tag_local in ('oMath', 'oMathPara'):
+                    xml_str = etree.tostring(child).decode('utf-8')
+                    math_texts = []
+                    for mt in child.iter(f'{{{M_NS}}}t'):
+                        if mt.text:
+                            math_texts.append(mt.text)
+                    para_data["runs"].append({
+                        "type": "formula",
+                        "formula_type": tag_local,
+                        "xml": xml_str,
+                        "text": ''.join(math_texts)
+                    })
+                    continue
+
+                if child.tag == f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}r':
+                    run_elem = child
+                    run_text = ''
+                    for t_elem in run_elem.findall(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}t'):
+                        if t_elem.text:
+                            run_text += t_elem.text
+
+                    run_bold = None
+                    run_italic = None
+                    run_font_name = None
+                    run_font_size = None
+                    rpr = run_elem.find(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}rPr')
+                    if rpr is not None:
+                        if rpr.find(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}b') is not None:
+                            run_bold = True
+                        if rpr.find(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}i') is not None:
+                            run_italic = True
+                        rFonts = rpr.find(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}rFonts')
+                        if rFonts is not None:
+                            run_font_name = rFonts.get(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}eastAsia') or rFonts.get(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}ascii')
+                        sz = rpr.find(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}sz')
+                        if sz is not None:
+                            val = sz.get(f'{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}val')
+                            if val:
+                                run_font_size = str(int(val) // 2) + 'pt'
+
+                    run_data = {
+                        "text": run_text,
+                        "bold": run_bold,
+                        "italic": run_italic,
+                        "font_name": run_font_name,
+                        "font_size": run_font_size
+                    }
+                    if run_text:
+                        para_data["runs"].append(run_data)
 
             self.ast["paragraphs"].append(para_data)
 
@@ -558,7 +604,8 @@ class ZeroFormatNormalizer:
 
         for i, para_data in enumerate(body_paras):
             text = para_data.get("text", "").strip()
-            if not text:
+            has_formula = any(r.get("type") == "formula" for r in para_data.get("runs", []))
+            if not text and not has_formula:
                 continue
 
             prev_text = body_paras[i-1].get("text", "") if i > 0 else None
@@ -567,11 +614,11 @@ class ZeroFormatNormalizer:
             heading_level = self._detect_heading_level(text, prev_text, next_text)
 
             if heading_level:
-                self._add_heading(text, heading_level)
+                self._add_heading(text, heading_level, para_data)
             else:
-                self._add_normal_paragraph(text)
+                self._add_normal_paragraph(text, para_data)
 
-    def _add_heading(self, text, level):
+    def _add_heading(self, text, level, para_data=None):
         heading_cfg = self.template_config.get("heading", {})
         level_key = f"level{level}"
         cfg = heading_cfg.get(level_key, {})
@@ -589,11 +636,23 @@ class ZeroFormatNormalizer:
         except KeyError:
             para = self.doc.add_paragraph()
 
-        run = para.add_run(text)
-        run.bold = bold
-        run.font.size = Pt(font_size)
-        run.font.color.rgb = RGBColor(0, 0, 0)
-        self._set_run_font(run, font_name, True)
+        runs = para_data.get("runs", []) if para_data else []
+        if runs:
+            for run_data in runs:
+                if run_data.get("type") == "formula":
+                    self._add_formula_to_paragraph(para, run_data)
+                    continue
+                run = para.add_run(run_data.get("text", ""))
+                run.bold = bold
+                run.font.size = Pt(font_size)
+                run.font.color.rgb = RGBColor(0, 0, 0)
+                self._set_run_font(run, font_name, True)
+        else:
+            run = para.add_run(text)
+            run.bold = bold
+            run.font.size = Pt(font_size)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+            self._set_run_font(run, font_name, True)
 
         if alignment_str.upper() == "CENTER":
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -607,7 +666,7 @@ class ZeroFormatNormalizer:
         if spacing_after:
             para.paragraph_format.space_after = Pt(spacing_after)
 
-    def _add_normal_paragraph(self, text):
+    def _add_normal_paragraph(self, text, para_data=None):
         para_cfg = self.template_config.get("paragraph", {})
         fonts_cfg = self.template_config.get("fonts", {})
 
@@ -618,12 +677,29 @@ class ZeroFormatNormalizer:
         first_indent = para_cfg.get("first_indent", 2)
 
         para = self.doc.add_paragraph()
-        run = para.add_run(text)
 
-        is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text)
-        font_name = chinese_font if is_chinese else fonts_cfg.get("english", {}).get("family", "Times New Roman")
-        self._set_run_font(run, font_name, is_chinese)
-        run.font.size = Pt(body_size)
+        runs = para_data.get("runs", []) if para_data else []
+        if runs:
+            for run_data in runs:
+                if run_data.get("type") == "formula":
+                    self._add_formula_to_paragraph(para, run_data)
+                    continue
+                run_text = run_data.get("text", "")
+                run = para.add_run(run_text)
+                is_chinese = any('\u4e00' <= c <= '\u9fff' for c in run_text)
+                font_name = chinese_font if is_chinese else fonts_cfg.get("english", {}).get("family", "Times New Roman")
+                self._set_run_font(run, font_name, is_chinese)
+                run.font.size = Pt(body_size)
+                if run_data.get("bold"):
+                    run.bold = True
+                if run_data.get("italic"):
+                    run.italic = True
+        else:
+            run = para.add_run(text)
+            is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text)
+            font_name = chinese_font if is_chinese else fonts_cfg.get("english", {}).get("family", "Times New Roman")
+            self._set_run_font(run, font_name, is_chinese)
+            run.font.size = Pt(body_size)
 
         if alignment == "JUSTIFY":
             para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -840,6 +916,18 @@ class ZeroFormatNormalizer:
         update_fields = OxmlElement('w:updateFields')
         update_fields.set(qn('w:val'), 'false')
         settings_part.append(update_fields)
+
+    @staticmethod
+    def _add_formula_to_paragraph(para, run_data):
+        formula_xml = run_data.get("xml", "")
+        if not formula_xml:
+            return
+        try:
+            p_elem = para._element
+            formula_elem = etree.fromstring(formula_xml.encode('utf-8'))
+            p_elem.append(formula_elem)
+        except Exception as e:
+            print(f"[WARNING] Formula insertion error: {e}")
 
     @staticmethod
     def _set_run_font(run, font_name, is_chinese=False):

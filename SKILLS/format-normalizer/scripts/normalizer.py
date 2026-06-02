@@ -128,6 +128,9 @@ class FormatNormalizer:
                 if run.get("type") == "image":
                     continue
 
+                if run.get("type") == "formula":
+                    continue
+
                 text = run.get("text", "")
 
                 if self.smart_mode and not is_heading:
@@ -220,6 +223,8 @@ class FormatNormalizer:
                     lvl_size = lvl_cfg.get("size", 16 if level == 1 else 14 if level == 2 else 13)
                     for run in paragraph.get("runs", []):
                         if run.get("type") == "image":
+                            continue
+                        if run.get("type") == "formula":
                             continue
                         run["font_size"] = f"{lvl_size}pt"
                         if lvl_cfg.get("font"):

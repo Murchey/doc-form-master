@@ -1,203 +1,205 @@
+[English](README.md) | [中文](README_CN.md)
+
 # DOCX Master
 
-专业 DOCX 学术论文、公文与技术文档智能处理AGENT。
+Professional DOCX intelligent processing agent for academic papers, official documents, and technical documentation.
 
-## 功能特性
+## Features
 
-- **DOC 格式兼容** - 自动将旧版 .doc 格式转换为 .docx（使用 Word COM 或 LibreOffice）
-- **Markdown 无缝转换** - 支持 .md/.txt 文件导入，自动检测 LaTeX 数学公式，pandoc 转换为 DOCX
-- **中文论文格式化** - 自动标准化中文学术论文排版（GB/T 7713.1-2006）
-- **英文论文格式化** - 支持 APA、IEEE、ACM 等英文论文格式
-- **公文格式化** - 符合国家标准的公文排版（GB/T 9704-2012）
-- **页边距管理** - 支持党政机关公文、学术论文、镜像页边距等多种标准
-- **用户自定义模板** - 支持 YAML/JSON 自定义格式模板
-- **零格式文档处理** - 自动识别并格式化纯文本/无格式文档，智能检测文档结构
-- **智能标题识别** - 支持多种中文标题格式检测（编号、冒号、上下文感知等）
-- **设计预览与确认** - 浏览器中预览封面页、目录页、页眉页脚和正文样式，支持在线编辑
-- **自动生成目录** - 使用 Word TOC 域代码自动生成目录，包含页码、层级缩进和前导点
-- **页眉页脚管理** - 自定义页眉文本、分隔线和页码格式（阿拉伯/罗马/中文数字）
-- **段落间距控制** - 可选「段落之间空行分隔」，灵活控制正文排版风格
-- **中英互译** - 保持文档结构的智能翻译
-- **数学/化学公式保护** - 完整保留 OMML（`m:oMath`/`m:oMathPara`）、MathType 公式，格式化后公式位置不变
-- **图片布局优化** - 自动调整图片位置和大小
-- **表格格式化** - 三线表样式、单元格字体对齐、表格题注检测与格式化、题注与表格同页保持
-- **脚注格式化** - 脚注/尾注标准化，支持学术论文格式，自动检测并格式化脚注内容
-- **自定义格式管理** - 提供 WEB 界面管理格式模板配置，支持创建、编辑、导入、导出配置
-- **字体兼容管理** - 跨平台字体检测与 fallback
-- **PDF 导出** - 高质量 PDF 输出
-- **XML 安全保护** - 防止 DOCX 结构损坏
+- **DOC Format Compatibility** - Automatically convert legacy .doc format to .docx (using Word COM or LibreOffice)
+- **Markdown Seamless Conversion** - Support .md/.txt file import, auto-detect LaTeX math formulas, pandoc converts to DOCX
+- **Chinese Paper Formatting** - Automatically standardize Chinese academic paper typesetting (GB/T 7713.1-2006)
+- **English Paper Formatting** - Support APA, IEEE, ACM and other English paper formats
+- **Official Document Formatting** - Compliant with national standards for official document typesetting (GB/T 9704-2012)
+- **Margin Management** - Support government documents, academic papers, mirror margins and other standards
+- **User Custom Templates** - Support YAML/JSON custom format templates
+- **Zero-format Document Processing** - Automatically identify and format plain text/unformatted documents, intelligently detect document structure
+- **Smart Heading Recognition** - Support multiple Chinese heading format detection (numbering, colon, context-aware, etc.)
+- **Design Preview & Confirmation** - Preview cover page, table of contents, headers/footers and body styles in browser, support online editing
+- **Auto Generate Table of Contents** - Use Word TOC field code to auto-generate TOC, including page numbers, level indentation and leader dots
+- **Header & Footer Management** - Custom header text, divider line and page number format (Arabic/Roman/Chinese numbers)
+- **Paragraph Spacing Control** - Optional "blank line separation between paragraphs", flexible control of body layout style
+- **Chinese-English Translation** - Intelligent translation maintaining document structure
+- **Math/Chemistry Formula Protection** - Fully preserve OMML (`m:oMath`/`m:oMathPara`), MathType formulas, formula position unchanged after formatting
+- **Image Layout Optimization** - Automatically adjust image position and size
+- **Table Formatting** - Three-line table style, cell font alignment, table caption detection and formatting, caption and table keep on same page
+- **Footnote Formatting** - Footnote/endnote standardization, support academic paper format, auto-detect and format footnote content
+- **Custom Format Management** - Provide WEB interface to manage format template configuration, support create, edit, import, export configurations
+- **Font Compatibility Management** - Cross-platform font detection and fallback
+- **PDF Export** - High-quality PDF output
+- **XML Safety Protection** - Prevent DOCX structure corruption
 
-## 系统要求
+## System Requirements
 
 - Python 3.10+
-- Windows 10/11 (推荐)
-- Microsoft Word 或 LibreOffice (DOC 转换和 PDF 导出需要)
-- Pandoc (Markdown 转换需要，安装：`winget install JohnMacFarlane.Pandoc`)
+- Windows 10/11 (Recommended)
+- Microsoft Word or LibreOffice (Required for DOC conversion and PDF export)
+- Pandoc (Required for Markdown conversion, install: `winget install JohnMacFarlane.Pandoc`)
 
-## 快速开始
+## Quick Start
 
-### 1. 安装依赖
+### 1. Install Dependencies
 
 ```bash
 # Windows
 install_requirements.bat
 
-# 或手动安装
+# Or manual installation
 pip install -r requirements.txt
 ```
 
-### 2. 使用方法
+### 2. Usage
 
-1. 将 DOCX 文件放入 `workspace/input/`
-2. 运行 Agent，按提示选择处理选项
-3. 在浏览器预览界面中确认：
-   - 封面页设计（保留或重新设计）
-   - 目录页配置（自动生成、标题样式、最大级别）
-   - 页眉页脚设置（文本、字体、对齐、页码格式）
-   - 正文样式（字体、字号、行距、缩进）
-   - 段落间距（是否空行分隔）
-4. 确认后系统自动完成格式标准化
-5. 处理完成后，文件位于 `workspace/output/`
-6. 在 Word 中按 `Ctrl+A` 后按 `F9` 更新域以生成目录页码
+1. Place DOCX files in `workspace/input/`
+2. Run Agent, select processing options as prompted
+3. Confirm in browser preview interface:
+   - Cover page design (preserve or redesign)
+   - Table of contents configuration (auto-generate, heading styles, max level)
+   - Header/footer settings (text, font, alignment, page number format)
+   - Body styles (font, size, line spacing, indentation)
+   - Paragraph spacing (whether to use blank line separation)
+4. After confirmation, system automatically completes format standardization
+5. After processing, files are located in `workspace/output/`
+6. In Word, press `Ctrl+A` then `F9` to update fields and generate TOC page numbers
 
-## 项目结构
+## Project Structure
 
 ```
 doc-from-master/
-├── AGENT.md                    # Agent 配置文件
-├── SKILLS/                     # 技能模块
-│   ├── doc-compatibility/      # DOC 格式兼容（.doc → .docx）
-│   ├── markdown-converter/     # Markdown 转换（.md/.txt → .docx）
-│   ├── docx-parser/            # DOCX 结构解析（含封面/目录检测）
-│   ├── xml-safety/             # XML 安全校验
-│   ├── formula-protection/     # 数学公式保护
-│   ├── template-engine/        # 模板管理
-│   ├── font-manager/           # 字体兼容管理
-│   ├── format-normalizer/      # 格式标准化（已有格式文档）
-│   ├── zero-format-normalizer/ # 零格式标准化（纯文本/无格式文档）
-│   ├── table-processor/        # 表格格式化（三线表/题注/单元格格式）
-│   ├── footnote-processor/     # 脚注格式化（脚注/尾注标准化）
-│   ├── custom-format-manager/  # 自定义格式配置管理（WEB界面）
-│   ├── margin-manager/         # 页边距管理（公文/学术论文标准）
-│   ├── preview-design/         # 设计预览与用户确认（Web 界面）
-│   ├── image-layout/           # 图片布局优化
-│   ├── translation-engine/     # 中英互译
-│   ├── pdf-export/             # PDF 导出
-│   └── report-generator/       # 报告生成
-├── workspace/                  # 工作区 (运行时创建)
-│   ├── input/                  # 输入文件
-│   ├── output/                 # 输出文件
-│   └── reports/                # 处理报告
-├── requirements.txt            # Python 依赖
-└── install_requirements.bat    # 依赖安装脚本
+├── AGENT.md                    # Agent configuration file
+├── SKILLS/                     # Skill modules
+│   ├── doc-compatibility/      # DOC format compatibility (.doc → .docx)
+│   ├── markdown-converter/     # Markdown conversion (.md/.txt → .docx)
+│   ├── docx-parser/            # DOCX structure parsing (with cover/TOC detection)
+│   ├── xml-safety/             # XML safety validation
+│   ├── formula-protection/     # Math formula protection
+│   ├── template-engine/        # Template management
+│   ├── font-manager/           # Font compatibility management
+│   ├── format-normalizer/      # Format standardization (formatted documents)
+│   ├── zero-format-normalizer/ # Zero-format standardization (plain text/unformatted)
+│   ├── table-processor/        # Table formatting (three-line/caption/cell format)
+│   ├── footnote-processor/     # Footnote formatting (footnote/endnote standardization)
+│   ├── custom-format-manager/  # Custom format configuration management (WEB interface)
+│   ├── margin-manager/         # Margin management (government/academic standards)
+│   ├── preview-design/         # Design preview & user confirmation (Web interface)
+│   ├── image-layout/           # Image layout optimization
+│   ├── translation-engine/     # Chinese-English translation
+│   ├── pdf-export/             # PDF export
+│   └── report-generator/       # Report generation
+├── workspace/                  # Workspace (created at runtime)
+│   ├── input/                  # Input files
+│   ├── output/                 # Output files
+│   └── reports/                # Processing reports
+├── requirements.txt            # Python dependencies
+└── install_requirements.bat    # Dependency installation script
 ```
 
-## 处理流程
+## Processing Flow
 
 ```text
-Phase 0: 输入格式兼容
-    doc-compatibility（.doc → .docx）
-    markdown-converter（.md/.txt → .docx，含数学公式处理）
+Phase 0: Input Format Compatibility
+    doc-compatibility (.doc → .docx)
+    markdown-converter (.md/.txt → .docx, with math formula processing)
 
-Phase 1: 解析与格式质量检测
-    docx-parser → 格式质量检测（已格式化 / 零格式）
+Phase 1: Parsing & Format Quality Detection
+    docx-parser → Format quality detection (formatted / zero-format)
 
-Phase 2: 已格式化路径
+Phase 2: Formatted Path
     xml-safety → formula-protection → template-engine → font-manager
-    → preview-design（用户确认）→ format-normalizer → table-processor → footnote-processor → margin-manager → image-layout
+    → preview-design (user confirmation) → format-normalizer → table-processor → footnote-processor → margin-manager → image-layout
 
-Phase 2b: 零格式路径
-    template-engine → font-manager → preview-design（用户确认）
+Phase 2b: Zero-format Path
+    template-engine → font-manager → preview-design (user confirmation)
     → zero-format-normalizer → table-processor → footnote-processor → margin-manager → image-layout
 
-Phase 3: 后处理
-    translation-engine (可选)
-    pdf-export (可选)
+Phase 3: Post-processing
+    translation-engine (optional)
+    pdf-export (optional)
     report-generator
 ```
 
-### 输入格式支持
-系统支持多种输入格式，自动检测并转换：
-- **DOCX** - 直接处理
-- **DOC** - 自动转换为 .docx（使用 Word COM 或 LibreOffice）
-- **Markdown (.md)** - 使用 pandoc 转换为 .docx，支持 LaTeX 数学公式
-- **纯文本 (.txt)** - 智能检测 Markdown 内容并转换
+### Input Format Support
+The system supports multiple input formats, auto-detect and convert:
+- **DOCX** - Direct processing
+- **DOC** - Auto convert to .docx (using Word COM or LibreOffice)
+- **Markdown (.md)** - Use pandoc to convert to .docx, support LaTeX math formulas
+- **Plain text (.txt)** - Intelligently detect Markdown content and convert
 
-### 格式质量检测
-系统会自动检测文档的格式质量，决定走哪条处理路径：
-- **已格式化**：文档有标题样式、字体配置、段落格式 → 走已格式化路径
-- **零格式**：文档无任何格式，仅含纯文本内容 → 走零格式路径
+### Format Quality Detection
+The system automatically detects document format quality to decide processing path:
+- **Formatted**: Document has heading styles, font configuration, paragraph formatting → Formatted path
+- **Zero-format**: Document has no formatting, only plain text content → Zero-format path
 
-### 表格格式化
-格式标准化完成后，自动对文档中的表格进行学术论文标准格式化处理：
+### Table Formatting
+After format standardization, automatically format tables according to academic paper standards:
 
-| 项目 | 规范 |
-|------|------|
-| 表格位置 | 居中对齐 |
-| 边框样式 | 三线表（顶线/底线 1.5pt 粗实线，栏目线 0.75pt 细实线，无竖线） |
-| 表头字体 | 黑体 10.5pt（五号），加粗居中 |
-| 表体字体 | 宋体 10.5pt（五号），居中对齐 |
-| 行距 | 单倍行距 |
-| 单元格边距 | 0.1cm 内边距 |
-| 题注位置 | 表格上方 |
-| 题注字体 | 黑体 10.5pt（五号），居中 |
-| 题注格式 | 「表 X-X  题注内容」 |
-| 题注与表格 | 保持同页（keep with next） |
-| 表格内图片 | 保留不压缩 |
+| Item | Specification |
+|------|---------------|
+| Table position | Center aligned |
+| Border style | Three-line table (top/bottom 1.5pt solid, header 0.75pt solid, no vertical lines) |
+| Header font | Bold 10.5pt, center aligned |
+| Body font | 10.5pt, center aligned |
+| Line spacing | Single spacing |
+| Cell margin | 0.1cm inner margin |
+| Caption position | Above table |
+| Caption font | Bold 10.5pt, center aligned |
+| Caption format | "Table X-X Caption Content" |
+| Caption & table | Keep on same page (keep with next) |
+| Images in table | Preserve without compression |
 
-### 脚注格式化
-格式标准化完成后，自动对文档中的脚注和尾注进行学术论文标准格式化处理：
+### Footnote Formatting
+After format standardization, automatically format footnotes and endnotes according to academic paper standards:
 
-| 项目 | 规范 |
-|------|------|
-| 脚注字号 | 小五号（9pt） |
-| 脚注字体 | 中文宋体，英文 Times New Roman |
-| 脚注行距 | 单倍行距 |
-| 编号格式 | 上标阿拉伯数字 |
-| 分隔线 | 细实线（0.5pt），页面宽度 1/3 |
-| 尾注位置 | 文档末尾或节末 |
+| Item | Specification |
+|------|---------------|
+| Footnote size | 9pt |
+| Footnote font | Chinese: Song, English: Times New Roman |
+| Footnote line spacing | Single spacing |
+| Numbering format | Superscript Arabic numbers |
+| Separator line | 0.5pt solid, 1/3 page width |
+| Endnote position | End of document or section |
 
-配置项（位于模板文件 `footnote` 部分）：
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `enabled` | true | 是否启用脚注处理 |
-| `font_size` | 9 | 脚注字号（磅） |
-| `line_spacing` | single | 脚注行距 |
-| `numbering` | arabic | 编号格式：arabic/roman/symbol |
-| `separator_length` | 25 | 分隔线长度（毫米） |
+Configuration options (in template file `footnote` section):
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enabled` | true | Enable footnote processing |
+| `font_size` | 9 | Footnote size (pt) |
+| `line_spacing` | single | Footnote line spacing |
+| `numbering` | arabic | Numbering format: arabic/roman/symbol |
+| `separator_length` | 25 | Separator line length (mm) |
 
-## 模板说明
+## Template Description
 
-系统内置模板位于 `SKILLS/format-normalizer/custom/`:
+Built-in templates are located in `SKILLS/format-normalizer/custom/`:
 
-| 模板文件 | 标准 | 说明 |
-|---------|------|------|
-| `chinese_academic.yaml` | GB/T 7713.1-2006 | 中文学术论文 |
-| `english_academic.yaml` | APA 第 7 版 | 英文论文 |
+| Template File | Standard | Description |
+|---------------|----------|-------------|
+| `chinese_academic.yaml` | GB/T 7713.1-2006 | Chinese academic paper |
+| `english_academic.yaml` | APA 7th Edition | English paper |
 
-### 中文学术论文标准 (GB/T 7713.1-2006)
-- 页面：A4，页边距 上25.4mm 下25.4mm 左31.7mm 右25.4mm
-- 正文：小4号宋体，1.5倍行距
-- 一级标题：4号黑体，居中
-- 二级标题：小4号黑体，左对齐
-- 三级标题：小4号宋体，左对齐
+### Chinese Academic Paper Standard (GB/T 7713.1-2006)
+- Page: A4, margins top 25.4mm bottom 25.4mm left 31.7mm right 25.4mm
+- Body: Small 4 Song, 1.5x line spacing
+- Heading 1: Size 4 Bold, center aligned
+- Heading 2: Small 4 Bold, left aligned
+- Heading 3: Small 4 Song, left aligned
 
-### 英文论文标准 (APA 第 7 版)
-- 页面：A4/Letter，页边距 2.54cm (1英寸)
-- 正文：12pt Times New Roman，双倍行距
-- 标题：12pt Times New Roman，加粗
-- 首行缩进：0.5英寸 (1.27cm)
+### English Paper Standard (APA 7th Edition)
+- Page: A4/Letter, margins 2.54cm (1 inch)
+- Body: 12pt Times New Roman, double spacing
+- Heading: 12pt Times New Roman, bold
+- First line indent: 0.5 inch (1.27cm)
 
-支持自定义 YAML/JSON 模板。
+Support custom YAML/JSON templates.
 
-## 注意事项
+## Notes
 
-- 系统采用非破坏性处理，不会修改原始文件
-- 所有操作均可回滚
-- 大型文档 (>200页) 自动启用分块处理
-- 目录页使用 Word TOC 域代码生成，打开文档后需按 `Ctrl+A` 再按 `F9` 更新域以显示页码
-- 页眉页脚通过 Word 底层 XML 写入，兼容 WPS 和 LibreOffice
+- System uses non-destructive processing, will not modify original files
+- All operations can be rolled back
+- Large documents (>200 pages) automatically enable chunked processing
+- Table of contents uses Word TOC field code generation, open document and press `Ctrl+A` then `F9` to update fields and display page numbers
+- Headers and footers are written through Word underlying XML, compatible with WPS and LibreOffice
 
-## 许可证
+## License
 
 GPL 3.0

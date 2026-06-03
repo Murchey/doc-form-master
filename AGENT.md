@@ -184,9 +184,11 @@ result = run_preview(
   - **封面保护**：封面段落标记为 protected，不被格式化覆盖
   - 如 `edited_config.json` 中 `redesign_cover=true`：自动删除原始封面，按配置重建封面（学校名称、标题、信息项）
   - 自动检测参考文献并添加分页符+分节符（确保参考文献在新页开始）
+  - **自动更新目录域**：设置 `updateFields=true`，打开文档时 Word 自动更新目录页码
 - **零格式**：`zero_format_normalizer.py` 生成新文档
   - **必须传入 `edited_config_path`**：将用户在预览中确认的封面配置传递给格式化器
   - 参考文献自动分页（分页符+分节符）
+  - **自动更新目录域**：设置 `updateFields=true`，打开文档时 Word 自动更新目录页码
 
 ```python
 import sys

@@ -553,8 +553,19 @@ class ASTToDocxConverter:
     def save(self, output_path):
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._set_update_fields()
         self.doc.save(str(output_path))
         print(f"[INFO] DOCX saved to: {output_path}")
+
+    def _set_update_fields(self):
+        """Set updateFields flag so Word will auto-update TOC when opening"""
+        from lxml import etree
+        settings = self.doc.settings.element
+        update_fields = settings.find('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}updateFields')
+        if update_fields is None:
+            update_fields = etree.SubElement(settings, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}updateFields')
+        update_fields.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', 'true')
+        print("[INFO] Set updateFields=true for auto TOC update")
 
     def _generate_toc_page(self):
         toc_cfg = self.template_config.get("toc", {})

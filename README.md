@@ -56,7 +56,7 @@ Formatting academic papers is tedious and time-consuming. **doc-form-master** au
 - **Smart Headings** - Detect Chinese/English heading patterns
 - **Three-Line Tables** - Academic standard table formatting
 - **Footnotes & Endnotes** - Proper numbering and formatting
-- **Table of Contents** - Auto-generated with page numbers
+- **Table of Contents** - Auto-generated with page numbers, auto-update on open
 - **Headers & Footers** - Custom text and page numbering
 - **PDF Export** - High-quality output
 

@@ -84,9 +84,12 @@ pip install -r requirements.txt
 ### 2. 运行
 
 ```bash
-# 将文档放入 workspace/input/
-# 然后运行智能体
-python run_agent.py
+# 打开 AI IDE 或 Agent 软件（如 Trae、Cursor、Windsurf）
+# 加载 AGENT.md 作为智能体配置
+# 然后输入您的需求：
+"按照中文学术论文格式化我的论文"
+"将此文档转换为 APA 格式"
+"格式化表格并保护所有公式"
 ```
 
 ### 3. 完成！

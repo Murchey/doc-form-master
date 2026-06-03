@@ -84,9 +84,12 @@ pip install -r requirements.txt
 ### 2. Run
 
 ```bash
-# Place your document in workspace/input/
-# Then run the agent
-python run_agent.py
+# Open your AI IDE or Agent software (e.g., Trae, Cursor, Windsurf)
+# Load AGENT.md as the agent configuration
+# Then describe your requirements:
+"Format my paper according to Chinese academic standards"
+"Convert this document to APA format"
+"Format the tables and protect all formulas"
 ```
 
 ### 3. Done!

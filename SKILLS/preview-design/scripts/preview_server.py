@@ -264,9 +264,14 @@ def build_preview_html(state):
 <style>
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ font-family: "{chinese_font}", sans-serif; background: #f0f2f5; color: #333; }}
-.header {{ background: linear-gradient(135deg, #1a73e8, #4285f4); color: white; padding: 20px 40px; }}
+.header {{ background: linear-gradient(135deg, #1a73e8, #4285f4); color: white; padding: 20px 40px; position: relative; }}
 .header h1 {{ font-size: 22px; font-weight: 600; }}
 .header p {{ font-size: 13px; opacity: 0.85; margin-top: 4px; }}
+.language-switcher {{ position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }}
+.language-switcher:hover {{ background: rgba(255,255,255,0.3); }}
+.language-switcher svg {{ width: 18px; height: 18px; }}
+.language-switcher select {{ background: transparent; border: none; color: white; font-size: 14px; cursor: pointer; outline: none; }}
+.language-switcher select option {{ background: #333; color: white; }}
 .container {{ max-width: 1200px; margin: 20px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 380px; gap: 20px; }}
 .main {{ display: flex; flex-direction: column; gap: 16px; }}
 .sidebar {{ display: flex; flex-direction: column; gap: 16px; }}
@@ -316,6 +321,17 @@ body {{ font-family: "{chinese_font}", sans-serif; background: #f0f2f5; color: #
 <div class="header">
     <h1>DOCX Master - 文档设计预览</h1>
     <p>请确认封面页、目录页、页眉页脚和正文样式，修改后点击"确认并继续"</p>
+    <div class="language-switcher">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <select id="languageSelect" onchange="changeLanguage(this.value)">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+        </select>
+    </div>
 </div>
 <div class="container">
 <div class="main">
@@ -511,6 +527,219 @@ body {{ font-family: "{chinese_font}", sans-serif; background: #f0f2f5; color: #
 </div>
 </div>
 <script>
+// Language translations
+const translations = {{
+    zh: {{
+        title: '文档设计预览 - DOCX Master',
+        headerTitle: 'DOCX Master - 文档设计预览',
+        headerDesc: '请确认封面页、目录页、页眉页脚和正文样式，修改后点击"确认并继续"',
+        coverSection: '封面页',
+        coverDetected: '已检测到',
+        coverNotDetected: '未检测到',
+        keepCover: '保留原始封面页设计',
+        redesignCover: '重新设计封面页',
+        designCover: '设计封面页',
+        tocSection: '已有目录页',
+        tocDetected: '已检测到',
+        tocNotDetected: '未检测到',
+        keepToc: '保留原始目录页设计',
+        autoGenerateToc: '自动生成目录页',
+        headerFooterPreview: '页眉页脚预览',
+        bodyPreview: '正文样式预览',
+        styleConfig: '样式配置',
+        coverDesign: '封面设计',
+        custom: '自定义',
+        mainTitle: '大标题',
+        titleText: '标题文本',
+        font: '字体',
+        fontSize: '字号',
+        alignment: '对齐',
+        center: '居中',
+        left: '左对齐',
+        color: '颜色',
+        schoolInfo: '学校信息',
+        schoolName: '学校名称',
+        personalInfo: '个人信息',
+        addInfoItem: '+ 添加信息项',
+        schoolLogo: '学校标志',
+        showLogo: '显示Logo',
+        logoImage: 'Logo图片',
+        width: '宽度(px)',
+        height: '高度(px)',
+        position: '位置',
+        top: '顶部',
+        layoutSettings: '布局设置',
+        verticalAlign: '垂直对齐',
+        spacingAfterTitle: '标题后间距',
+        spacingBetweenItems: '信息项间距',
+        bodyFont: '正文字体',
+        chineseFont: '中文字体',
+        englishFont: '英文字体',
+        bodySize: '字号',
+        lineSpacing: '行距',
+        firstIndent: '首行缩进',
+        paraSpacing: '段落之间空行分隔',
+        headingStyle: '标题样式',
+        headingFont: '标题字体',
+        h1Size: 'H1 字号',
+        h1Align: 'H1 对齐',
+        h1Color: 'H1 颜色',
+        tocTitle: '目录标题',
+        tocTitleFont: '标题字体',
+        tocTitleSize: '标题字号',
+        tocEntryFont: '条目字体',
+        tocEntrySize: '条目字号',
+        tocMaxLevel: '最大级别',
+        onlyH1: '仅 H1',
+        h1ToH2: 'H1-H2',
+        h1ToH3: 'H1-H3',
+        tocIndent: '缩进量(em)',
+        showDotLeaders: '显示前导点',
+        tocPreview: '目录预览（基于文档标题，仅供参考）：',
+        tocNote: '实际目录将由 Word TOC 域自动生成，包含页码、层级缩进和前导点。在 Word 中按 Ctrl+A 后按 F9 更新域。',
+        setHeader: '设置页眉',
+        headerText: '页眉文本',
+        showSeparator: '显示分隔线',
+        setFooter: '设置页脚页码',
+        pageNumberFormat: '页码格式',
+        arabic: '阿拉伯数字 (1, 2, 3)',
+        roman: '罗马数字 (I, II, III)',
+        chinese: '中文数字 (一, 二, 三)',
+        pageSettings: '页面设置',
+        marginTop: '上边距(cm)',
+        marginLeft: '左边距(cm)',
+        confirmAndContinue: '确认并继续',
+        resetDefaults: '重置默认',
+        designConfirmed: '✓ 设计已确认，处理将继续...',
+        newLabel: '新标签',
+        enterContent: '请输入内容',
+        bodyArea: '（正文内容区域）',
+        headerNotEnabled: '页眉未启用',
+        footerNotEnabled: '页脚未启用',
+        noHeadingsDetected: '未检测到标题，无法自动生成目录',
+        noCoverDetected: '文档未检测到封面页。',
+        noTocDetected: '文档未检测到目录页。您可以在下方选择自动生成。'
+    }},
+    en: {{
+        title: 'Document Design Preview - DOCX Master',
+        headerTitle: 'DOCX Master - Document Design Preview',
+        headerDesc: 'Please confirm cover page, TOC, headers/footers and body styles, then click "Confirm and Continue"',
+        coverSection: 'Cover Page',
+        coverDetected: 'Detected',
+        coverNotDetected: 'Not Detected',
+        keepCover: 'Keep original cover page design',
+        redesignCover: 'Redesign cover page',
+        designCover: 'Design cover page',
+        tocSection: 'Existing TOC',
+        tocDetected: 'Detected',
+        tocNotDetected: 'Not Detected',
+        keepToc: 'Keep original TOC design',
+        autoGenerateToc: 'Auto-generate TOC',
+        headerFooterPreview: 'Header & Footer Preview',
+        bodyPreview: 'Body Style Preview',
+        styleConfig: 'Style Configuration',
+        coverDesign: 'Cover Design',
+        custom: 'Custom',
+        mainTitle: 'Main Title',
+        titleText: 'Title Text',
+        font: 'Font',
+        fontSize: 'Font Size',
+        alignment: 'Alignment',
+        center: 'Center',
+        left: 'Left',
+        color: 'Color',
+        schoolInfo: 'School Info',
+        schoolName: 'School Name',
+        personalInfo: 'Personal Info',
+        addInfoItem: '+ Add Info Item',
+        schoolLogo: 'School Logo',
+        showLogo: 'Show Logo',
+        logoImage: 'Logo Image',
+        width: 'Width(px)',
+        height: 'Height(px)',
+        position: 'Position',
+        top: 'Top',
+        layoutSettings: 'Layout Settings',
+        verticalAlign: 'Vertical Align',
+        spacingAfterTitle: 'Spacing After Title',
+        spacingBetweenItems: 'Spacing Between Items',
+        bodyFont: 'Body Font',
+        chineseFont: 'Chinese Font',
+        englishFont: 'English Font',
+        bodySize: 'Font Size',
+        lineSpacing: 'Line Spacing',
+        firstIndent: 'First Indent',
+        paraSpacing: 'Paragraph spacing with blank line',
+        headingStyle: 'Heading Style',
+        headingFont: 'Heading Font',
+        h1Size: 'H1 Size',
+        h1Align: 'H1 Align',
+        h1Color: 'H1 Color',
+        tocTitle: 'TOC Title',
+        tocTitleFont: 'Title Font',
+        tocTitleSize: 'Title Size',
+        tocEntryFont: 'Entry Font',
+        tocEntrySize: 'Entry Size',
+        tocMaxLevel: 'Max Level',
+        onlyH1: 'H1 Only',
+        h1ToH2: 'H1-H2',
+        h1ToH3: 'H1-H3',
+        tocIndent: 'Indent(em)',
+        showDotLeaders: 'Show dot leaders',
+        tocPreview: 'TOC preview (based on document headings, for reference only):',
+        tocNote: 'Actual TOC will be auto-generated by Word TOC field, including page numbers, level indentation and leader dots. Press Ctrl+A then F9 in Word to update fields.',
+        setHeader: 'Set Header',
+        headerText: 'Header Text',
+        showSeparator: 'Show separator line',
+        setFooter: 'Set Footer Page Number',
+        pageNumberFormat: 'Page Number Format',
+        arabic: 'Arabic (1, 2, 3)',
+        roman: 'Roman (I, II, III)',
+        chinese: 'Chinese (一, 二, 三)',
+        pageSettings: 'Page Settings',
+        marginTop: 'Top Margin(cm)',
+        marginLeft: 'Left Margin(cm)',
+        confirmAndContinue: 'Confirm and Continue',
+        resetDefaults: 'Reset Defaults',
+        designConfirmed: '✓ Design confirmed, processing will continue...',
+        newLabel: 'New Label',
+        enterContent: 'Enter content',
+        bodyArea: '(Body content area)',
+        headerNotEnabled: 'Header not enabled',
+        footerNotEnabled: 'Footer not enabled',
+        noHeadingsDetected: 'No headings detected, cannot auto-generate TOC',
+        noCoverDetected: 'No cover page detected in document.',
+        noTocDetected: 'No TOC detected in document. You can choose to auto-generate below.'
+    }}
+}};
+
+let currentLang = localStorage.getItem('language') || 'zh';
+
+function t(key) {{
+    return translations[currentLang][key] || key;
+}}
+
+function changeLanguage(lang) {{
+    currentLang = lang;
+    localStorage.setItem('language', lang);
+    applyTranslations();
+}}
+
+function applyTranslations() {{
+    document.title = t('title');
+    // Update header
+    const header = document.querySelector('.header');
+    if (header) {{
+        header.querySelector('h1').textContent = t('headerTitle');
+        header.querySelector('p').textContent = t('headerDesc');
+    }}
+    // Update language select
+    document.getElementById('languageSelect').value = currentLang;
+}}
+
+// Initialize language
+applyTranslations();
+
 function toggleSection(name) {{
     const cb = document.getElementById("cfg-" + name + "-enabled");
     const body = document.getElementById(name + "-options");

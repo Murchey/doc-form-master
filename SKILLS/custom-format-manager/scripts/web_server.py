@@ -16,7 +16,7 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>格式配置管理器</title>
+    <title data-i18n="title">格式配置管理器</title>
     <style>
         * {
             margin: 0;
@@ -41,6 +41,7 @@ HTML_TEMPLATE = '''
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
         }
         .header h1 {
             font-size: 28px;
@@ -49,6 +50,38 @@ HTML_TEMPLATE = '''
         .header p {
             opacity: 0.9;
             font-size: 14px;
+        }
+        .language-switcher {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .language-switcher:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .language-switcher svg {
+            width: 18px;
+            height: 18px;
+        }
+        .language-switcher select {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+        .language-switcher select option {
+            background: #333;
+            color: white;
         }
         .main-content {
             display: grid;
@@ -322,6 +355,7 @@ HTML_TEMPLATE = '''
             margin-bottom: 20px;
             border-bottom: 1px solid #ddd;
             padding-bottom: 10px;
+            flex-wrap: wrap;
         }
         .tab {
             padding: 8px 16px;
@@ -357,22 +391,33 @@ HTML_TEMPLATE = '''
 <body>
     <div class="container">
         <div class="header">
-            <h1>📝 格式配置管理器</h1>
-            <p>管理学术论文、公文和文档的格式模板配置</p>
+            <h1 data-i18n="headerTitle">📝 格式配置管理器</h1>
+            <p data-i18n="headerDesc">管理学术论文、公文和文档的格式模板配置</p>
+            <div class="language-switcher">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <select id="languageSelect" onchange="changeLanguage(this.value)">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
         </div>
         
         <div class="main-content">
             <div class="sidebar">
-                <h3>配置列表</h3>
+                <h3 data-i18n="configList">配置列表</h3>
                 <ul class="config-list" id="configList"></ul>
                 <div style="margin-top: 15px;">
                     <button class="btn btn-outline" style="width: 100%;" onclick="showNewConfigModal()">
-                        + 新建配置
+                        <span data-i18n="newConfig">+ 新建配置</span>
                     </button>
                 </div>
                 <div style="margin-top: 10px;">
                     <button class="btn btn-outline" style="width: 100%;" onclick="showImportModal()">
-                        📁 导入配置
+                        <span data-i18n="importConfig">📁 导入配置</span>
                     </button>
                 </div>
             </div>
@@ -383,38 +428,52 @@ HTML_TEMPLATE = '''
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                     </svg>
-                    <h3>选择一个配置开始编辑</h3>
-                    <p>从左侧列表选择一个配置，或创建新配置</p>
+                    <h3 data-i18n="selectConfig">选择一个配置开始编辑</h3>
+                    <p data-i18n="selectConfigDesc">从左侧列表选择一个配置，或创建新配置</p>
                 </div>
                 
                 <div id="editorContent" style="display: none;">
                     <div class="editor-header">
-                        <h2 id="editorTitle">配置编辑</h2>
+                        <h2 id="editorTitle" data-i18n="editConfig">配置编辑</h2>
                         <div class="btn-group">
-                            <button class="btn btn-secondary" onclick="showYamlPreview()">预览 YAML</button>
-                            <button class="btn btn-success" onclick="saveConfig()">💾 保存</button>
-                            <button class="btn btn-primary" onclick="showSaveAsModal()">另存为</button>
-                            <button class="btn btn-danger" onclick="deleteConfig()">🗑️ 删除</button>
+                            <button class="btn btn-secondary" onclick="showYamlPreview()">
+                                <span data-i18n="previewYaml">预览 YAML</span>
+                            </button>
+                            <button class="btn btn-success" onclick="saveConfig()">
+                                <span data-i18n="save">💾 保存</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="showSaveAsModal()">
+                                <span data-i18n="saveAs">另存为</span>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteConfig()">
+                                <span data-i18n="delete">🗑️ 删除</span>
+                            </button>
                         </div>
                     </div>
                     
                     <div class="tabs">
-                        <button class="tab active" onclick="switchTab('basic')">基本信息</button>
-                        <button class="tab" onclick="switchTab('page')">页面设置</button>
-                        <button class="tab" onclick="switchTab('heading')">标题样式</button>
-                        <button class="tab" onclick="switchTab('body')">正文格式</button>
-                        <button class="tab" onclick="switchTab('table')">表格格式</button>
-                        <button class="tab" onclick="switchTab('footnote')">脚注格式</button>
-                        <button class="tab" onclick="switchTab('other')">其他设置</button>
+                        <button class="tab active" onclick="switchTab('basic')" data-i18n="tabBasic">基本信息</button>
+                        <button class="tab" onclick="switchTab('page')" data-i18n="tabPage">页面设置</button>
+                        <button class="tab" onclick="switchTab('heading')" data-i18n="tabHeading">标题样式</button>
+                        <button class="tab" onclick="switchTab('body')" data-i18n="tabBody">正文格式</button>
+                        <button class="tab" onclick="switchTab('table')" data-i18n="tabTable">表格格式</button>
+                        <button class="tab" onclick="switchTab('footnote')" data-i18n="tabFootnote">脚注格式</button>
+                        <button class="tab" onclick="switchTab('other')" data-i18n="tabOther">其他设置</button>
                     </div>
                     
                     <div id="tabContent"></div>
                     
                     <div class="actions-bar">
-                        <button class="btn btn-outline" onclick="resetConfig()">重置修改</button>
+                        <button class="btn btn-outline" onclick="resetConfig()">
+                            <span data-i18n="reset">重置修改</span>
+                        </button>
                         <div class="btn-group">
-                            <button class="btn btn-secondary" onclick="showYamlPreview()">预览 YAML</button>
-                            <button class="btn btn-success" onclick="saveConfig()">💾 保存</button>
+                            <button class="btn btn-secondary" onclick="showYamlPreview()">
+                                <span data-i18n="previewYaml">预览 YAML</span>
+                            </button>
+                            <button class="btn btn-success" onclick="saveConfig()">
+                                <span data-i18n="save">💾 保存</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -425,24 +484,24 @@ HTML_TEMPLATE = '''
     <div class="modal" id="newConfigModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>新建配置</h3>
+                <h3 data-i18n="newConfigTitle">新建配置</h3>
                 <button class="modal-close" onclick="closeModal('newConfigModal')">&times;</button>
             </div>
             <div class="form-group">
-                <label>配置名称</label>
+                <label data-i18n="configName">配置名称</label>
                 <input type="text" id="newConfigName" placeholder="my_custom_config">
             </div>
             <div class="form-group">
-                <label>基于模板</label>
+                <label data-i18n="baseTemplate">基于模板</label>
                 <select id="baseTemplate">
-                    <option value="chinese_academic">中文学术论文</option>
-                    <option value="english_academic">英文论文</option>
-                    <option value="empty">空白模板</option>
+                    <option value="chinese_academic" data-i18n="chineseAcademic">中文学术论文</option>
+                    <option value="english_academic" data-i18n="englishAcademic">英文论文</option>
+                    <option value="empty" data-i18n="emptyTemplate">空白模板</option>
                 </select>
             </div>
             <div style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="closeModal('newConfigModal')">取消</button>
-                <button class="btn btn-primary" onclick="createNewConfig()">创建</button>
+                <button class="btn btn-secondary" onclick="closeModal('newConfigModal')" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" onclick="createNewConfig()" data-i18n="create">创建</button>
             </div>
         </div>
     </div>
@@ -450,16 +509,16 @@ HTML_TEMPLATE = '''
     <div class="modal" id="saveAsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>另存为</h3>
+                <h3 data-i18n="saveAsTitle">另存为</h3>
                 <button class="modal-close" onclick="closeModal('saveAsModal')">&times;</button>
             </div>
             <div class="form-group">
-                <label>新配置名称</label>
+                <label data-i18n="newConfigName">新配置名称</label>
                 <input type="text" id="saveAsName" placeholder="输入新名称">
             </div>
             <div style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="closeModal('saveAsModal')">取消</button>
-                <button class="btn btn-primary" onclick="saveAsConfig()">保存</button>
+                <button class="btn btn-secondary" onclick="closeModal('saveAsModal')" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" onclick="saveAsConfig()" data-i18n="save">保存</button>
             </div>
         </div>
     </div>
@@ -467,20 +526,20 @@ HTML_TEMPLATE = '''
     <div class="modal" id="importModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>导入配置</h3>
+                <h3 data-i18n="importTitle">导入配置</h3>
                 <button class="modal-close" onclick="closeModal('importModal')">&times;</button>
             </div>
             <div class="form-group">
-                <label>配置名称</label>
+                <label data-i18n="configName">配置名称</label>
                 <input type="text" id="importName" placeholder="留空则使用文件名">
             </div>
             <div class="form-group">
-                <label>YAML 文件内容</label>
+                <label data-i18n="yamlContent">YAML 文件内容</label>
                 <textarea id="importContent" rows="10" placeholder="粘贴 YAML 内容..."></textarea>
             </div>
             <div style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="closeModal('importModal')">取消</button>
-                <button class="btn btn-primary" onclick="importConfig()">导入</button>
+                <button class="btn btn-secondary" onclick="closeModal('importModal')" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" onclick="importConfig()" data-i18n="import">导入</button>
             </div>
         </div>
     </div>
@@ -488,20 +547,263 @@ HTML_TEMPLATE = '''
     <div class="modal" id="yamlPreviewModal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
-                <h3>YAML 预览</h3>
+                <h3 data-i18n="yamlPreviewTitle">YAML 预览</h3>
                 <button class="modal-close" onclick="closeModal('yamlPreviewModal')">&times;</button>
             </div>
             <div class="yaml-preview" id="yamlPreviewContent"></div>
             <div style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-primary" onclick="closeModal('yamlPreviewModal')">关闭</button>
+                <button class="btn btn-primary" onclick="closeModal('yamlPreviewModal')" data-i18n="close">关闭</button>
             </div>
         </div>
     </div>
     
     <script>
+        // Language translations
+        const translations = {
+            zh: {
+                title: '格式配置管理器',
+                headerTitle: '📝 格式配置管理器',
+                headerDesc: '管理学术论文、公文和文档的格式模板配置',
+                configList: '配置列表',
+                newConfig: '+ 新建配置',
+                importConfig: '📁 导入配置',
+                selectConfig: '选择一个配置开始编辑',
+                selectConfigDesc: '从左侧列表选择一个配置，或创建新配置',
+                editConfig: '配置编辑',
+                previewYaml: '预览 YAML',
+                save: '💾 保存',
+                saveAs: '另存为',
+                delete: '🗑️ 删除',
+                tabBasic: '基本信息',
+                tabPage: '页面设置',
+                tabHeading: '标题样式',
+                tabBody: '正文格式',
+                tabTable: '表格格式',
+                tabFootnote: '脚注格式',
+                tabOther: '其他设置',
+                reset: '重置修改',
+                newConfigTitle: '新建配置',
+                configName: '配置名称',
+                baseTemplate: '基于模板',
+                chineseAcademic: '中文学术论文',
+                englishAcademic: '英文论文',
+                emptyTemplate: '空白模板',
+                cancel: '取消',
+                create: '创建',
+                saveAsTitle: '另存为',
+                newConfigName: '新配置名称',
+                importTitle: '导入配置',
+                yamlContent: 'YAML 文件内容',
+                import: '导入',
+                yamlPreviewTitle: 'YAML 预览',
+                close: '关闭',
+                // Form labels
+                templateName: '模板名称',
+                description: '描述',
+                standard: '标准',
+                pageSize: '页面大小',
+                marginTop: '上边距 (cm)',
+                marginBottom: '下边距 (cm)',
+                marginLeft: '左边距 (cm)',
+                marginRight: '右边距 (cm)',
+                level1Heading: '一级标题',
+                level2Heading: '二级标题',
+                level3Heading: '三级标题',
+                font: '字体',
+                fontSize: '字号 (pt)',
+                bold: '加粗',
+                alignment: '对齐',
+                center: '居中',
+                left: '左对齐',
+                yes: '是',
+                no: '否',
+                fontConfig: '字体配置',
+                chineseFont: '中文字体',
+                chineseFontSize: '中文正文字号 (pt)',
+                englishFont: '英文字体',
+                englishFontSize: '英文正文字号 (pt)',
+                headingFont: '标题字体',
+                paragraphFormat: '段落格式',
+                lineSpacing: '行距',
+                singleSpacing: '单倍行距',
+                spacing15: '1.5倍行距',
+                doubleSpacing: '双倍行距',
+                firstLineIndent: '首行缩进 (字符)',
+                justify: '两端对齐',
+                spacingBefore: '段前间距 (pt)',
+                spacingAfter: '段后间距 (pt)',
+                tableFormat: '表格格式',
+                borderStyle: '边框样式',
+                threeLine: '三线表',
+                single: '单线',
+                none: '无边框',
+                headerFontSize: '表头字号 (pt)',
+                cellFontSize: '单元格字号 (pt)',
+                footnoteFormat: '脚注格式',
+                enableFootnote: '启用脚注处理',
+                chineseFontSize2: '中文字号 (pt)',
+                englishFontSize2: '英文字号 (pt)',
+                numberingFormat: '编号格式',
+                circled: '带圈数字',
+                arabic: '阿拉伯数字',
+                roman: '罗马数字',
+                restartPerPage: '每页重新编号',
+                protectionSettings: '保护设置',
+                protectFormulas: '保护公式',
+                protectImages: '保护图片',
+                protectTables: '保护表格',
+                // Messages
+                configSaved: '配置已保存',
+                configSavedAs: '配置已另存为',
+                configCreated: '配置已创建',
+                configDeleted: '配置已删除',
+                configImported: '配置已导入',
+                configReset: '配置已重置',
+                confirmDelete: '确定要删除配置',
+                cannotOverwrite: '不能覆盖内置配置',
+                error: '错误',
+                success: '成功'
+            },
+            en: {
+                title: 'Format Configuration Manager',
+                headerTitle: '📝 Format Configuration Manager',
+                headerDesc: 'Manage format template configurations for academic papers, official documents, and technical reports',
+                configList: 'Configuration List',
+                newConfig: '+ New Configuration',
+                importConfig: '📁 Import Configuration',
+                selectConfig: 'Select a configuration to edit',
+                selectConfigDesc: 'Select a configuration from the left list, or create a new one',
+                editConfig: 'Edit Configuration',
+                previewYaml: 'Preview YAML',
+                save: '💾 Save',
+                saveAs: 'Save As',
+                delete: '🗑️ Delete',
+                tabBasic: 'Basic Info',
+                tabPage: 'Page Settings',
+                tabHeading: 'Heading Styles',
+                tabBody: 'Body Format',
+                tabTable: 'Table Format',
+                tabFootnote: 'Footnote Format',
+                tabOther: 'Other Settings',
+                reset: 'Reset Changes',
+                newConfigTitle: 'New Configuration',
+                configName: 'Configuration Name',
+                baseTemplate: 'Based on Template',
+                chineseAcademic: 'Chinese Academic',
+                englishAcademic: 'English Academic',
+                emptyTemplate: 'Empty Template',
+                cancel: 'Cancel',
+                create: 'Create',
+                saveAsTitle: 'Save As',
+                newConfigName: 'New Configuration Name',
+                importTitle: 'Import Configuration',
+                yamlContent: 'YAML File Content',
+                import: 'Import',
+                yamlPreviewTitle: 'YAML Preview',
+                close: 'Close',
+                // Form labels
+                templateName: 'Template Name',
+                description: 'Description',
+                standard: 'Standard',
+                pageSize: 'Page Size',
+                marginTop: 'Top Margin (cm)',
+                marginBottom: 'Bottom Margin (cm)',
+                marginLeft: 'Left Margin (cm)',
+                marginRight: 'Right Margin (cm)',
+                level1Heading: 'Heading Level 1',
+                level2Heading: 'Heading Level 2',
+                level3Heading: 'Heading Level 3',
+                font: 'Font',
+                fontSize: 'Font Size (pt)',
+                bold: 'Bold',
+                alignment: 'Alignment',
+                center: 'Center',
+                left: 'Left',
+                yes: 'Yes',
+                no: 'No',
+                fontConfig: 'Font Configuration',
+                chineseFont: 'Chinese Font',
+                chineseFontSize: 'Chinese Body Size (pt)',
+                englishFont: 'English Font',
+                englishFontSize: 'English Body Size (pt)',
+                headingFont: 'Heading Font',
+                paragraphFormat: 'Paragraph Format',
+                lineSpacing: 'Line Spacing',
+                singleSpacing: 'Single Spacing',
+                spacing15: '1.5x Spacing',
+                doubleSpacing: 'Double Spacing',
+                firstLineIndent: 'First Line Indent (chars)',
+                justify: 'Justify',
+                spacingBefore: 'Spacing Before (pt)',
+                spacingAfter: 'Spacing After (pt)',
+                tableFormat: 'Table Format',
+                borderStyle: 'Border Style',
+                threeLine: 'Three-line',
+                single: 'Single',
+                none: 'None',
+                headerFontSize: 'Header Font Size (pt)',
+                cellFontSize: 'Cell Font Size (pt)',
+                footnoteFormat: 'Footnote Format',
+                enableFootnote: 'Enable Footnote',
+                chineseFontSize2: 'Chinese Size (pt)',
+                englishFontSize2: 'English Size (pt)',
+                numberingFormat: 'Numbering Format',
+                circled: 'Circled',
+                arabic: 'Arabic',
+                roman: 'Roman',
+                restartPerPage: 'Restart Per Page',
+                protectionSettings: 'Protection Settings',
+                protectFormulas: 'Protect Formulas',
+                protectImages: 'Protect Images',
+                protectTables: 'Protect Tables',
+                // Messages
+                configSaved: 'Configuration saved',
+                configSavedAs: 'Configuration saved as',
+                configCreated: 'Configuration created',
+                configDeleted: 'Configuration deleted',
+                configImported: 'Configuration imported',
+                configReset: 'Configuration reset',
+                confirmDelete: 'Are you sure to delete configuration',
+                cannotOverwrite: 'Cannot overwrite builtin configuration',
+                error: 'Error',
+                success: 'Success'
+            }
+        };
+        
+        let currentLang = localStorage.getItem('language') || 'zh';
         let currentConfig = null;
         let currentConfigName = null;
         let originalConfig = null;
+        
+        function t(key) {
+            return translations[currentLang][key] || key;
+        }
+        
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('language', lang);
+            applyTranslations();
+        }
+        
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) {
+                    el.textContent = translations[currentLang][key];
+                }
+            });
+            document.title = t('title');
+            document.getElementById('languageSelect').value = currentLang;
+            
+            // Refresh tab content if config is loaded
+            if (currentConfig) {
+                const activeTab = document.querySelector('.tab.active');
+                if (activeTab) {
+                    const tabName = activeTab.getAttribute('onclick').match(/'(\\w+)'/)[1];
+                    switchTab(tabName);
+                }
+            }
+        }
         
         async function loadConfigs() {
             const response = await fetch('/api/configs');
@@ -527,7 +829,7 @@ HTML_TEMPLATE = '''
             
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('editorContent').style.display = 'block';
-            document.getElementById('editorTitle').textContent = `编辑: ${name}`;
+            document.getElementById('editorTitle').textContent = `${t('editConfig')}: ${name}`;
             
             switchTab('basic');
             loadConfigs();
@@ -548,20 +850,20 @@ HTML_TEMPLATE = '''
                 case 'basic':
                     return `
                         <div class="section">
-                            <div class="section-title">基本信息</div>
+                            <div class="section-title">${t('tabBasic')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>模板名称</label>
+                                    <label>${t('templateName')}</label>
                                     <input type="text" value="${currentConfig.metadata?.name || ''}" 
                                            onchange="updateConfig('metadata.name', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>描述</label>
+                                    <label>${t('description')}</label>
                                     <input type="text" value="${currentConfig.metadata?.description || ''}"
                                            onchange="updateConfig('metadata.description', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>标准</label>
+                                    <label>${t('standard')}</label>
                                     <input type="text" value="${currentConfig.metadata?.standard || ''}"
                                            onchange="updateConfig('metadata.standard', this.value)">
                                 </div>
@@ -571,32 +873,32 @@ HTML_TEMPLATE = '''
                 case 'page':
                     return `
                         <div class="section">
-                            <div class="section-title">页面设置</div>
+                            <div class="section-title">${t('tabPage')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>页面大小</label>
+                                    <label>${t('pageSize')}</label>
                                     <select onchange="updateConfig('page.size', this.value)">
                                         <option value="A4" ${currentConfig.page?.size === 'A4' ? 'selected' : ''}>A4</option>
                                         <option value="Letter" ${currentConfig.page?.size === 'Letter' ? 'selected' : ''}>Letter</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>上边距 (cm)</label>
+                                    <label>${t('marginTop')}</label>
                                     <input type="number" step="0.1" value="${currentConfig.page?.margin_top || 2.54}"
                                            onchange="updateConfig('page.margin_top', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>下边距 (cm)</label>
+                                    <label>${t('marginBottom')}</label>
                                     <input type="number" step="0.1" value="${currentConfig.page?.margin_bottom || 2.54}"
                                            onchange="updateConfig('page.margin_bottom', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>左边距 (cm)</label>
+                                    <label>${t('marginLeft')}</label>
                                     <input type="number" step="0.1" value="${currentConfig.page?.margin_left || 3.17}"
                                            onchange="updateConfig('page.margin_left', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>右边距 (cm)</label>
+                                    <label>${t('marginRight')}</label>
                                     <input type="number" step="0.1" value="${currentConfig.page?.margin_right || 2.54}"
                                            onchange="updateConfig('page.margin_right', parseFloat(this.value))">
                                 </div>
@@ -606,88 +908,88 @@ HTML_TEMPLATE = '''
                 case 'heading':
                     return `
                         <div class="section">
-                            <div class="section-title">一级标题</div>
+                            <div class="section-title">${t('level1Heading')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>字体</label>
+                                    <label>${t('font')}</label>
                                     <input type="text" value="${currentConfig.heading?.level1?.font || ''}"
                                            onchange="updateConfig('heading.level1.font', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>字号 (pt)</label>
+                                    <label>${t('fontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.heading?.level1?.size || 16}"
                                            onchange="updateConfig('heading.level1.size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>加粗</label>
+                                    <label>${t('bold')}</label>
                                     <select onchange="updateConfig('heading.level1.bold', this.value === 'true')">
-                                        <option value="true" ${currentConfig.heading?.level1?.bold ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.heading?.level1?.bold ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.heading?.level1?.bold ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.heading?.level1?.bold ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>对齐</label>
+                                    <label>${t('alignment')}</label>
                                     <select onchange="updateConfig('heading.level1.alignment', this.value)">
-                                        <option value="center" ${currentConfig.heading?.level1?.alignment === 'center' ? 'selected' : ''}>居中</option>
-                                        <option value="left" ${currentConfig.heading?.level1?.alignment === 'left' ? 'selected' : ''}>左对齐</option>
+                                        <option value="center" ${currentConfig.heading?.level1?.alignment === 'center' ? 'selected' : ''}>${t('center')}</option>
+                                        <option value="left" ${currentConfig.heading?.level1?.alignment === 'left' ? 'selected' : ''}>${t('left')}</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         <div class="section">
-                            <div class="section-title">二级标题</div>
+                            <div class="section-title">${t('level2Heading')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>字体</label>
+                                    <label>${t('font')}</label>
                                     <input type="text" value="${currentConfig.heading?.level2?.font || ''}"
                                            onchange="updateConfig('heading.level2.font', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>字号 (pt)</label>
+                                    <label>${t('fontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.heading?.level2?.size || 14}"
                                            onchange="updateConfig('heading.level2.size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>加粗</label>
+                                    <label>${t('bold')}</label>
                                     <select onchange="updateConfig('heading.level2.bold', this.value === 'true')">
-                                        <option value="true" ${currentConfig.heading?.level2?.bold ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.heading?.level2?.bold ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.heading?.level2?.bold ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.heading?.level2?.bold ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>对齐</label>
+                                    <label>${t('alignment')}</label>
                                     <select onchange="updateConfig('heading.level2.alignment', this.value)">
-                                        <option value="left" ${currentConfig.heading?.level2?.alignment === 'left' ? 'selected' : ''}>左对齐</option>
-                                        <option value="center" ${currentConfig.heading?.level2?.alignment === 'center' ? 'selected' : ''}>居中</option>
+                                        <option value="left" ${currentConfig.heading?.level2?.alignment === 'left' ? 'selected' : ''}>${t('left')}</option>
+                                        <option value="center" ${currentConfig.heading?.level2?.alignment === 'center' ? 'selected' : ''}>${t('center')}</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         <div class="section">
-                            <div class="section-title">三级标题</div>
+                            <div class="section-title">${t('level3Heading')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>字体</label>
+                                    <label>${t('font')}</label>
                                     <input type="text" value="${currentConfig.heading?.level3?.font || ''}"
                                            onchange="updateConfig('heading.level3.font', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>字号 (pt)</label>
+                                    <label>${t('fontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.heading?.level3?.size || 12}"
                                            onchange="updateConfig('heading.level3.size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>加粗</label>
+                                    <label>${t('bold')}</label>
                                     <select onchange="updateConfig('heading.level3.bold', this.value === 'true')">
-                                        <option value="true" ${currentConfig.heading?.level3?.bold ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.heading?.level3?.bold ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.heading?.level3?.bold ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.heading?.level3?.bold ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>对齐</label>
+                                    <label>${t('alignment')}</label>
                                     <select onchange="updateConfig('heading.level3.alignment', this.value)">
-                                        <option value="left" ${currentConfig.heading?.level3?.alignment === 'left' ? 'selected' : ''}>左对齐</option>
-                                        <option value="center" ${currentConfig.heading?.level3?.alignment === 'center' ? 'selected' : ''}>居中</option>
+                                        <option value="left" ${currentConfig.heading?.level3?.alignment === 'left' ? 'selected' : ''}>${t('left')}</option>
+                                        <option value="center" ${currentConfig.heading?.level3?.alignment === 'center' ? 'selected' : ''}>${t('center')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -696,65 +998,65 @@ HTML_TEMPLATE = '''
                 case 'body':
                     return `
                         <div class="section">
-                            <div class="section-title">字体配置</div>
+                            <div class="section-title">${t('fontConfig')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>中文字体</label>
+                                    <label>${t('chineseFont')}</label>
                                     <input type="text" value="${currentConfig.fonts?.chinese?.family || ''}"
                                            onchange="updateConfig('fonts.chinese.family', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>中文正文字号 (pt)</label>
+                                    <label>${t('chineseFontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.fonts?.chinese?.size || 12}"
                                            onchange="updateConfig('fonts.chinese.size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>英文字体</label>
+                                    <label>${t('englishFont')}</label>
                                     <input type="text" value="${currentConfig.fonts?.english?.family || ''}"
                                            onchange="updateConfig('fonts.english.family', this.value)">
                                 </div>
                                 <div class="form-group">
-                                    <label>英文正文字号 (pt)</label>
+                                    <label>${t('englishFontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.fonts?.english?.size || 12}"
                                            onchange="updateConfig('fonts.english.size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>标题字体</label>
+                                    <label>${t('headingFont')}</label>
                                     <input type="text" value="${currentConfig.fonts?.heading?.family || ''}"
                                            onchange="updateConfig('fonts.heading.family', this.value)">
                                 </div>
                             </div>
                         </div>
                         <div class="section">
-                            <div class="section-title">段落格式</div>
+                            <div class="section-title">${t('paragraphFormat')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>行距</label>
+                                    <label>${t('lineSpacing')}</label>
                                     <select onchange="updateConfig('paragraph.line_spacing', this.value)">
-                                        <option value="1" ${currentConfig.paragraph?.line_spacing === 1 ? 'selected' : ''}>单倍行距</option>
-                                        <option value="1.5" ${currentConfig.paragraph?.line_spacing === 1.5 ? 'selected' : ''}>1.5倍行距</option>
-                                        <option value="2" ${currentConfig.paragraph?.line_spacing === 2 ? 'selected' : ''}>双倍行距</option>
+                                        <option value="1" ${currentConfig.paragraph?.line_spacing === 1 ? 'selected' : ''}>${t('singleSpacing')}</option>
+                                        <option value="1.5" ${currentConfig.paragraph?.line_spacing === 1.5 ? 'selected' : ''}>${t('spacing15')}</option>
+                                        <option value="2" ${currentConfig.paragraph?.line_spacing === 2 ? 'selected' : ''}>${t('doubleSpacing')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>首行缩进 (字符)</label>
+                                    <label>${t('firstLineIndent')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.paragraph?.first_indent || 2}"
                                            onchange="updateConfig('paragraph.first_indent', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>对齐</label>
+                                    <label>${t('alignment')}</label>
                                     <select onchange="updateConfig('paragraph.alignment', this.value)">
-                                        <option value="justify" ${currentConfig.paragraph?.alignment === 'justify' ? 'selected' : ''}>两端对齐</option>
-                                        <option value="left" ${currentConfig.paragraph?.alignment === 'left' ? 'selected' : ''}>左对齐</option>
+                                        <option value="justify" ${currentConfig.paragraph?.alignment === 'justify' ? 'selected' : ''}>${t('justify')}</option>
+                                        <option value="left" ${currentConfig.paragraph?.alignment === 'left' ? 'selected' : ''}>${t('left')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>段前间距 (pt)</label>
+                                    <label>${t('spacingBefore')}</label>
                                     <input type="number" step="1" value="${currentConfig.paragraph?.spacing_before || 0}"
                                            onchange="updateConfig('paragraph.spacing_before', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>段后间距 (pt)</label>
+                                    <label>${t('spacingAfter')}</label>
                                     <input type="number" step="1" value="${currentConfig.paragraph?.spacing_after || 0}"
                                            onchange="updateConfig('paragraph.spacing_after', parseFloat(this.value))">
                                 </div>
@@ -764,23 +1066,23 @@ HTML_TEMPLATE = '''
                 case 'table':
                     return `
                         <div class="section">
-                            <div class="section-title">表格格式</div>
+                            <div class="section-title">${t('tableFormat')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>边框样式</label>
+                                    <label>${t('borderStyle')}</label>
                                     <select onchange="updateConfig('table.border', this.value)">
-                                        <option value="three-line" ${currentConfig.table?.border === 'three-line' ? 'selected' : ''}>三线表</option>
-                                        <option value="single" ${currentConfig.table?.border === 'single' ? 'selected' : ''}>单线</option>
-                                        <option value="none" ${currentConfig.table?.border === 'none' ? 'selected' : ''}>无边框</option>
+                                        <option value="three-line" ${currentConfig.table?.border === 'three-line' ? 'selected' : ''}>${t('threeLine')}</option>
+                                        <option value="single" ${currentConfig.table?.border === 'single' ? 'selected' : ''}>${t('single')}</option>
+                                        <option value="none" ${currentConfig.table?.border === 'none' ? 'selected' : ''}>${t('none')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>表头字号 (pt)</label>
+                                    <label>${t('headerFontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.table?.header_font_size || 10.5}"
                                            onchange="updateConfig('table.header_font_size', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>单元格字号 (pt)</label>
+                                    <label>${t('cellFontSize')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.table?.cell_font_size || 10.5}"
                                            onchange="updateConfig('table.cell_font_size', parseFloat(this.value))">
                                 </div>
@@ -790,38 +1092,38 @@ HTML_TEMPLATE = '''
                 case 'footnote':
                     return `
                         <div class="section">
-                            <div class="section-title">脚注格式</div>
+                            <div class="section-title">${t('footnoteFormat')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>启用脚注处理</label>
+                                    <label>${t('enableFootnote')}</label>
                                     <select onchange="updateConfig('footnote.enabled', this.value === 'true')">
-                                        <option value="true" ${currentConfig.footnote?.enabled ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.footnote?.enabled ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.footnote?.enabled ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.footnote?.enabled ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>中文字号 (pt)</label>
+                                    <label>${t('chineseFontSize2')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.footnote?.font_size_cn || 10.5}"
                                            onchange="updateConfig('footnote.font_size_cn', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>英文字号 (pt)</label>
+                                    <label>${t('englishFontSize2')}</label>
                                     <input type="number" step="0.5" value="${currentConfig.footnote?.font_size_en || 9}"
                                            onchange="updateConfig('footnote.font_size_en', parseFloat(this.value))">
                                 </div>
                                 <div class="form-group">
-                                    <label>编号格式</label>
+                                    <label>${t('numberingFormat')}</label>
                                     <select onchange="updateConfig('footnote.numbering', this.value)">
-                                        <option value="circled" ${currentConfig.footnote?.numbering === 'circled' ? 'selected' : ''}>带圈数字</option>
-                                        <option value="arabic" ${currentConfig.footnote?.numbering === 'arabic' ? 'selected' : ''}>阿拉伯数字</option>
-                                        <option value="roman" ${currentConfig.footnote?.numbering === 'roman' ? 'selected' : ''}>罗马数字</option>
+                                        <option value="circled" ${currentConfig.footnote?.numbering === 'circled' ? 'selected' : ''}>${t('circled')}</option>
+                                        <option value="arabic" ${currentConfig.footnote?.numbering === 'arabic' ? 'selected' : ''}>${t('arabic')}</option>
+                                        <option value="roman" ${currentConfig.footnote?.numbering === 'roman' ? 'selected' : ''}>${t('roman')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>每页重新编号</label>
+                                    <label>${t('restartPerPage')}</label>
                                     <select onchange="updateConfig('footnote.restart_per_page', this.value === 'true')">
-                                        <option value="true" ${currentConfig.footnote?.restart_per_page ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.footnote?.restart_per_page ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.footnote?.restart_per_page ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.footnote?.restart_per_page ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -830,27 +1132,27 @@ HTML_TEMPLATE = '''
                 case 'other':
                     return `
                         <div class="section">
-                            <div class="section-title">保护设置</div>
+                            <div class="section-title">${t('protectionSettings')}</div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label>保护公式</label>
+                                    <label>${t('protectFormulas')}</label>
                                     <select onchange="updateConfig('protection.preserve_formulas', this.value === 'true')">
-                                        <option value="true" ${currentConfig.protection?.preserve_formulas ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.protection?.preserve_formulas ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.protection?.preserve_formulas ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.protection?.preserve_formulas ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>保护图片</label>
+                                    <label>${t('protectImages')}</label>
                                     <select onchange="updateConfig('protection.preserve_images', this.value === 'true')">
-                                        <option value="true" ${currentConfig.protection?.preserve_images ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.protection?.preserve_images ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.protection?.preserve_images ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.protection?.preserve_images ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>保护表格</label>
+                                    <label>${t('protectTables')}</label>
                                     <select onchange="updateConfig('protection.preserve_tables', this.value === 'true')">
-                                        <option value="true" ${currentConfig.protection?.preserve_tables ? 'selected' : ''}>是</option>
-                                        <option value="false" ${!currentConfig.protection?.preserve_tables ? 'selected' : ''}>否</option>
+                                        <option value="true" ${currentConfig.protection?.preserve_tables ? 'selected' : ''}>${t('yes')}</option>
+                                        <option value="false" ${!currentConfig.protection?.preserve_tables ? 'selected' : ''}>${t('no')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -883,7 +1185,7 @@ HTML_TEMPLATE = '''
             const result = await response.json();
             
             if (result.success) {
-                showNotification('配置已保存', 'success');
+                showNotification(t('configSaved'), 'success');
                 originalConfig = JSON.parse(JSON.stringify(currentConfig));
             } else {
                 showNotification(result.error, 'error');
@@ -907,7 +1209,7 @@ HTML_TEMPLATE = '''
             const result = await response.json();
             
             if (result.success) {
-                showNotification(`配置已另存为 "${name}"`, 'success');
+                showNotification(`${t('configSavedAs')} "${name}"`, 'success');
                 closeModal('saveAsModal');
                 currentConfigName = name;
                 loadConfigs();
@@ -940,7 +1242,7 @@ HTML_TEMPLATE = '''
             const result = await response.json();
             
             if (result.success) {
-                showNotification(`配置 "${name}" 已创建`, 'success');
+                showNotification(`${t('configCreated')} "${name}"`, 'success');
                 closeModal('newConfigModal');
                 loadConfig(name);
             } else {
@@ -958,7 +1260,7 @@ HTML_TEMPLATE = '''
             const name = document.getElementById('importName').value;
             const content = document.getElementById('importContent').value;
             
-            const response = awaitfetch('/api/configs/import', {
+            const response = await fetch('/api/configs/import', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({name, content})
@@ -967,7 +1269,7 @@ HTML_TEMPLATE = '''
             const result = await response.json();
             
             if (result.success) {
-                showNotification(`配置已导入`, 'success');
+                showNotification(t('configImported'), 'success');
                 closeModal('importModal');
                 loadConfig(result.name);
             } else {
@@ -976,7 +1278,7 @@ HTML_TEMPLATE = '''
         }
         
         async function deleteConfig() {
-            if (!confirm(`确定要删除配置 "${currentConfigName}" 吗？`)) return;
+            if (!confirm(`${t('confirmDelete')} "${currentConfigName}"?`)) return;
             
             const response = await fetch(`/api/configs/${currentConfigName}`, {
                 method: 'DELETE'
@@ -985,7 +1287,7 @@ HTML_TEMPLATE = '''
             const result = await response.json();
             
             if (result.success) {
-                showNotification(`配置 "${currentConfigName}" 已删除`, 'success');
+                showNotification(t('configDeleted'), 'success');
                 currentConfig = null;
                 currentConfigName = null;
                 document.getElementById('emptyState').style.display = 'block';
@@ -1000,7 +1302,7 @@ HTML_TEMPLATE = '''
             if (originalConfig) {
                 currentConfig = JSON.parse(JSON.stringify(originalConfig));
                 switchTab('basic');
-                showNotification('配置已重置', 'success');
+                showNotification(t('configReset'), 'success');
             }
         }
         
@@ -1028,6 +1330,8 @@ HTML_TEMPLATE = '''
             }, 3000);
         }
         
+        // Initialize
+        applyTranslations();
         loadConfigs();
     </script>
 </body>

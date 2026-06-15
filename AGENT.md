@@ -33,11 +33,16 @@ tools: [python]
 # Skills 索引（按需加载，禁止预读）
 
 ```
-doc-compatibility → markdown-converter → docx-parser → xml-safety → formula-protection → template-engine → font-manager
+doc-compatibility → markitdown-converter → docx-parser → xml-safety → formula-protection → template-engine → font-manager
 → format-normalizer（已格式化）/ zero-format-normalizer（零格式）
 → table-processor → footnote-processor → margin-manager → preview-design（含文档标注）→ image-layout → translation-engine → pdf-export
 → custom-format-manager（自定义格式配置管理，独立调用）
 ```
+
+**转换逻辑**（统一使用 markitdown-converter）：
+- **MD → DOCX**：使用 pandoc 引擎
+- **DOCX → MD**：使用 markitdown 引擎
+- **其他格式 → DOCX**：markitdown → MD → pandoc → DOCX
 
 ---
 
@@ -80,22 +85,38 @@ if converter.is_doc_format('workspace/input/input.doc'):
     result = converter.convert('workspace/input/input.doc', 'workspace/input/input.docx')
 ```
 
-## Step 2c: Markdown 转换（如输入为 .md/.txt）
-读取 `SKILLS/markdown-converter/SKILL.md`，检测输入文件是否为 Markdown 格式：
-- 如果是 .md/.txt 格式且包含 Markdown 内容，调用 `md_converter.py` 转换为 .docx
-- 自动检测并格式化 LaTeX 数学公式（添加 `$` 分隔符）
-- 使用 pandoc 转换为 DOCX（支持 MathML 公式渲染）
+## Step 2c: 文档格式转换
+读取 `SKILLS/markitdown-converter/SKILL.md`，检测输入文件格式并转换为 DOCX：
+- 如果是 .md/.txt 格式 → 使用 pandoc 转换为 .docx（自动处理数学公式）
+- 如果是 .docx 格式 → 跳过，直接进入解析
+- 如果是其他格式（PDF、PPTX、XLSX、HTML 等）→ 使用 markitdown 转换为 MD，再用 pandoc 转换为 DOCX
 - 转换后更新 `workspace/input/input.docx` 路径
-- 如果是 .docx 格式，跳过此步骤
 
 ```python
 import sys
-sys.path.insert(0, 'SKILLS/markdown-converter/scripts')
-from md_converter import MarkdownConverter
+sys.path.insert(0, 'SKILLS/markitdown-converter/scripts')
+from markitdown_converter import MarkItDownConverter
 
-converter = MarkdownConverter()
-if converter._is_markdown('workspace/input/input.md'):
-    result = converter.convert('workspace/input/input.md', 'workspace/input/input.docx')
+converter = MarkItDownConverter()
+input_path = 'workspace/input/input.doc'
+
+# 使用 convert_to_docx 自动处理所有格式
+result = converter.convert_to_docx(input_path, 'workspace/input/input.docx')
+```
+
+## Step 2d: DOCX 转换为 Markdown（可选）
+如果用户需要将 DOCX 转换为 Markdown（用于内容分析等场景）：
+- 调用 `MarkItDownConverter.convert()` 将 DOCX 转换为 Markdown
+- 保存到 `workspace/output/` 目录
+- 此步骤为可选，仅在用户明确要求时执行
+
+```python
+import sys
+sys.path.insert(0, 'SKILLS/markitdown-converter/scripts')
+from markitdown_converter import MarkItDownConverter
+
+converter = MarkItDownConverter()
+result = converter.convert('workspace/input/input.docx', 'workspace/output/output.md')
 ```
 
 ## Step 3: 解析文档

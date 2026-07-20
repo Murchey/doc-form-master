@@ -152,6 +152,7 @@ result = converter.convert('workspace/input/input.docx', 'workspace/output/outpu
 1. **模板选择**：展示可用模板列表（如 chinese_academic.yaml / english_academic.yaml），让用户选择
 2. **是否需要公式保护**：如果检测到公式，询问用户是否启用公式保护
 3. **是否需要翻译**：询问用户是否需要翻译文档内容
+4. **表格格式风格**：如果检测到表格，询问用户表格格式偏好
 
 示例问题格式：
 ```
@@ -161,6 +162,8 @@ result = converter.convert('workspace/input/input.docx', 'workspace/output/outpu
 选项: [是(推荐)] [否]
 问题3: 是否需要翻译文档？
 选项: [不需要] [翻译为英文] [翻译为中文]
+问题4: 表格格式风格？（如文档包含表格）
+选项: [三线表（学术论文标准）(推荐)] [全边框表格] [不处理表格]
 ```
 
 **禁止**：自动选择默认值而不询问用户
@@ -256,11 +259,16 @@ normalizer.run('workspace/output/formatted.docx')
 **注意**：格式标准化完成后，会自动调用 `table-processor` 进行表格格式化处理（见 Step 9b）。
 
 ## Step 9b: 表格格式化处理
-格式标准化（Step 9a）完成后，自动调用 `table-processor` 对文档中的表格进行学术论文标准格式化。
+格式标准化（Step 9a）完成后，根据用户在 Step 5b 中选择的表格格式风格，自动调用 `table-processor` 对文档中的表格进行处理。
 
 **此步骤已集成在 format-normalizer 和 zero-format-normalizer 中，自动执行。**
 
-处理内容：
+**根据用户选择执行**：
+- **三线表**：应用学术论文标准三线表格式（默认行为）
+- **全边框表格**：保持全边框，只做字体字号规范化
+- **不处理表格**：跳过表格格式化步骤
+
+处理内容（三线表模式）：
 - **表格对齐**：表格整体居中对齐
 - **三线表边框**：顶线/底线 1.5pt 粗实线，栏目线 0.75pt 细实线，无竖线
 - **表头行格式**：首行黑体 10.5pt（五号）加粗，居中对齐，单倍行距
